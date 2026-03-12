@@ -1,14 +1,88 @@
 import { motion } from "framer-motion";
 import { useTranslation } from "react-i18next";
 import { CourseCard } from "@/components/course-card";
-import { useCourses } from "@/hooks/use-courses";
 import { Button } from "@/components/ui/button";
-import { ArrowRight, Star, Play, Sparkles } from "lucide-react";
+import { ArrowRight, Sparkles } from "lucide-react";
 import heroImg from "@assets/7323_1752152530250-30yzAfBJ_1772459664361.jpg";
+import type { Course } from "@shared/schema";
+
+const COURSES: Course[] = [
+  {
+    id: 1,
+    trackId: 1,
+    slug: "stewardship-101",
+    title: "Stewardship 101",
+    description: "A comprehensive introduction to biblical financial management. Learn what the Bible says about money, resources, and your role as a steward.",
+    price: 0,
+    level: "beginner",
+    duration: "4 hours",
+    imageUrl: "https://images.unsplash.com/photo-1532619675605-1ede6c2ed2b0?w=800&q=80",
+    isPublished: true,
+  },
+  {
+    id: 2,
+    trackId: 1,
+    slug: "budgeting-masterclass",
+    title: "Budgeting Masterclass",
+    description: "Take control of your cash flow with practical, Bible-based budgeting tools. Build a spending plan that reflects your values and honours God.",
+    price: 9900,
+    level: "intermediate",
+    duration: "6 hours",
+    imageUrl: "https://images.unsplash.com/photo-1554224155-6726b3ff858f?w=800&q=80",
+    isPublished: true,
+  },
+  {
+    id: 3,
+    trackId: 2,
+    slug: "kingdom-investing",
+    title: "Kingdom Investing Principles",
+    description: "Learn how to grow your wealth while keeping an eternal perspective. Biblical wisdom for the stock market, real estate, and business.",
+    price: 14900,
+    level: "intermediate",
+    duration: "8 hours",
+    imageUrl: "https://images.unsplash.com/photo-1611974789855-9c2a0a7236a3?w=800&q=80",
+    isPublished: true,
+  },
+  {
+    id: 4,
+    trackId: 2,
+    slug: "retirement-gods-way",
+    title: "Retirement God's Way",
+    description: "Plan for the future with faith and wisdom. How to save, invest, and leave a godly legacy for the next generation.",
+    price: 12900,
+    level: "advanced",
+    duration: "5 hours",
+    imageUrl: "https://images.unsplash.com/photo-1559526324-4b87b5e36e44?w=800&q=80",
+    isPublished: true,
+  },
+  {
+    id: 5,
+    trackId: 3,
+    slug: "debt-freedom-plan",
+    title: "The Debt Freedom Plan",
+    description: "A proven, Scripture-backed system for eliminating all consumer debt and achieving true financial freedom in Christ.",
+    price: 7900,
+    level: "beginner",
+    duration: "6 hours",
+    imageUrl: "https://images.unsplash.com/photo-1567427017947-545c5f8d16ad?w=800&q=80",
+    isPublished: true,
+  },
+  {
+    id: 6,
+    trackId: 4,
+    slug: "radical-generosity",
+    title: "Radical Generosity",
+    description: "Experience the transforming power of giving. Learn the principles of tithing, offerings, and how generosity unlocks God's blessing.",
+    price: 0,
+    level: "beginner",
+    duration: "3 hours",
+    imageUrl: "https://images.unsplash.com/photo-1593113598332-cd288d649433?w=800&q=80",
+    isPublished: true,
+  },
+];
 
 export default function Home() {
   const { t } = useTranslation();
-  const { data: courses, isLoading } = useCourses();
 
   return (
     <div className="relative overflow-x-hidden">
@@ -78,19 +152,11 @@ export default function Home() {
             <Button variant="link" className="text-primary font-bold text-lg p-0 h-auto">Explore all tracks <ArrowRight className="ml-2 w-5 h-5" /></Button>
           </div>
 
-          {isLoading ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-              {[1, 2, 3].map(i => (
-                <div key={i} className="w-full h-80 bg-muted animate-pulse rounded-2xl"></div>
-              ))}
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-              {courses?.map(course => (
-                <CourseCard key={course.id} course={course} />
-              ))}
-            </div>
-          )}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            {COURSES.map(course => (
+              <CourseCard key={course.id} course={course} />
+            ))}
+          </div>
         </div>
       </section>
     </div>
