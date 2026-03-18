@@ -3,27 +3,39 @@ import { Strategy as LocalStrategy } from "passport-local";
 import session from "express-session";
 import type { Express, RequestHandler } from "express";
 import connectPg from "connect-pg-simple";
+import pg from "pg";
 import bcrypt from "bcryptjs";
 import { authStorage } from "./storage";
 import { User } from "@shared/models/auth";
 
+const isProduction = process.env.NODE_ENV === "production";
+
+function makeSessionPool() {
+  return new pg.Pool({
+    connectionString: process.env.DATABASE_URL,
+    ssl: isProduction ? { rejectUnauthorized: false } : false,
+    max: 1,
+  });
+}
+
 export function getSession() {
   const sessionTtl = 7 * 24 * 60 * 60 * 1000; // 1 week
-  const pgStore = connectPg(session);
-  const sessionStore = new pgStore({
-    conString: process.env.DATABASE_URL,
-    createTableIfMissing: false,
+  const PgStore = connectPg(session);
+  const sessionStore = new PgStore({
+    pool: makeSessionPool(),
+    createTableIfMissing: true,
     ttl: sessionTtl,
     tableName: "sessions",
   });
   return session({
-    secret: process.env.SESSION_SECRET || "fallback-secret",
+    secret: process.env.SESSION_SECRET || "fallback-secret-change-in-production",
     store: sessionStore,
     resave: false,
     saveUninitialized: false,
     cookie: {
       httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
+      secure: isProduction,
+      sameSite: isProduction ? "none" : "lax",
       maxAge: sessionTtl,
     },
   });
