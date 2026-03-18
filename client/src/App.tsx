@@ -27,6 +27,7 @@ import SingAlong from "@/pages/sing-along";
 import TestimonyAlong from "@/pages/testimony-along";
 import PrayAlong from "@/pages/pray-along";
 import ReadAlong from "@/pages/read-along";
+import CoursesPage from "@/pages/courses";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -34,8 +35,9 @@ function Router() {
     <LayoutWrapper>
       <Switch>
         <Route path="/" component={Home} />
-        <Route path="/auth" component={AuthPage} />
+        <Route path="/courses" component={CoursesPage} />
         <Route path="/courses/:slug" component={CourseLanding} />
+        <Route path="/auth" component={AuthPage} />
         <Route path="/dashboard" component={Dashboard} />
         <Route path="/learn/:slug" component={CoursePlayer} />
         <Route path="/admin" component={AdminDashboard} />

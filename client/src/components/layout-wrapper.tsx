@@ -62,7 +62,7 @@ export function LayoutWrapper({ children }: { children: React.ReactNode }) {
         </DropdownMenuContent>
       </DropdownMenu>
 
-      <Link href="/" className={`${mobile ? 'py-2 block' : ''} text-sm font-bold text-muted-foreground hover:text-foreground transition-colors whitespace-nowrap ${location === '/' ? 'text-primary' : ''}`}>
+      <Link href="/courses" className={`${mobile ? 'py-2 block' : ''} text-sm font-bold text-muted-foreground hover:text-foreground transition-colors whitespace-nowrap ${location === '/courses' ? 'text-primary' : ''}`}>
         Courses
       </Link>
       <Link href="/donate" className={`${mobile ? 'py-2 block' : ''} text-sm font-bold text-muted-foreground hover:text-foreground transition-colors whitespace-nowrap ${location === '/donate' ? 'text-primary' : ''}`}>
