@@ -1,22 +1,13 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Music, Play, Users, Heart, Star, BookOpen, Radio, Mic2, Globe, Clock } from "lucide-react";
+import { Music, Play, Users, BookOpen, Upload, Clock } from "lucide-react";
 import { useActionCTA } from "@/hooks/use-action-cta";
 
 const liveStreams = [
   { time: "Sunday 10:00 AM", title: "Morning Worship Service", host: "BFC Worship Team", viewers: 1245, status: "Next Sunday" },
   { time: "Wednesday 7:00 PM", title: "Midweek Praise Night", host: "Sister Grace & Team", viewers: 567, status: "Wednesday" },
   { time: "Friday 8:00 PM", title: "Glory Night — Extended Worship", host: "Pastor Nathaniel", viewers: 892, status: "This Friday" },
-];
-
-const hymnLibrary = [
-  { title: "How Great Thou Art", tradition: "Classic Hymn", era: "1885", theme: "Majesty of God" },
-  { title: "Great Is Thy Faithfulness", tradition: "Classic Hymn", era: "1923", theme: "God's Faithfulness" },
-  { title: "To God Be the Glory", tradition: "Gospel", era: "1875", theme: "Salvation" },
-  { title: "It Is Well With My Soul", tradition: "Classic Hymn", era: "1873", theme: "Peace in Trials" },
-  { title: "Way Maker", tradition: "Contemporary", era: "2016", theme: "God's Power" },
-  { title: "Goodness of God", tradition: "Contemporary", era: "2018", theme: "Gratitude" },
 ];
 
 const devotionals = [
@@ -143,35 +134,25 @@ export default function WorshipPage() {
         </div>
       </section>
 
-      {/* Hymn Library */}
+      {/* Hymn Library — Coming Soon */}
       <section className="bg-muted/30 py-16">
         <div className="container mx-auto px-4">
           <div className="text-center mb-10">
             <h2 className="text-3xl font-bold mb-2">Hymn & Song Library</h2>
-            <p className="text-muted-foreground">500+ songs from classic hymns to contemporary worship</p>
+            <p className="text-muted-foreground">Songs and hymns will appear here once uploaded</p>
           </div>
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-5">
-            {hymnLibrary.map((hymn) => (
-              <Card key={hymn.title} className="border border-border/50 shadow-sm hover:shadow-md transition-shadow">
-                <CardContent className="p-5">
-                  <div className="flex items-start justify-between mb-2">
-                    <div>
-                      <h4 className="font-bold">{hymn.title}</h4>
-                      <p className="text-xs text-muted-foreground">{hymn.tradition} · {hymn.era}</p>
-                    </div>
-                    <Badge variant="outline" className="text-xs shrink-0">{hymn.theme}</Badge>
-                  </div>
-                  <Button size="sm" className="w-full mt-3 rounded-full font-bold" onClick={() => startActivity(hymn.title)}>
-                    <Music className="w-3 h-3 mr-1" />Play & Worship
-                  </Button>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-          <div className="text-center mt-8">
-            <Button variant="outline" className="rounded-full px-8 font-bold" onClick={() => startActivity("Full Hymn Library")}>
-              Browse All 500+ Songs
-            </Button>
+          <div className="max-w-lg mx-auto">
+            <Card className="border-2 border-dashed border-border/50 shadow-sm">
+              <CardContent className="p-12 text-center">
+                <div className="w-20 h-20 rounded-3xl bg-primary/10 flex items-center justify-center mx-auto mb-6">
+                  <Upload className="w-10 h-10 text-primary" />
+                </div>
+                <h3 className="text-xl font-bold mb-3">Hymns & Songs Coming Soon</h3>
+                <p className="text-muted-foreground text-sm leading-relaxed">
+                  The worship song library is being prepared. Hymns and contemporary songs uploaded by the admin will appear here, complete with lyrics and worship guides.
+                </p>
+              </CardContent>
+            </Card>
           </div>
         </div>
       </section>

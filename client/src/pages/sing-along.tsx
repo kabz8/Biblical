@@ -1,39 +1,13 @@
-import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Mic2, Play, Music2, Users, Heart, Star } from "lucide-react";
-import { Input } from "@/components/ui/input";
+import { Mic2, Play, Music2, Users, Heart, Star, Upload } from "lucide-react";
 import { useActionCTA } from "@/hooks/use-action-cta";
 
 const liveSessions = [
   { id: 1, title: "Sunday Morning Praise", host: "Worship Team", participants: 234, genre: "Contemporary", status: "Live", time: "Now" },
   { id: 2, title: "Hymns & Classics", host: "Sister Agnes", participants: 89, genre: "Traditional", status: "Starting Soon", time: "In 15 min" },
   { id: 3, title: "Gospel Choir Night", host: "Grace Choir", participants: 312, genre: "Gospel", status: "Live", time: "Now" },
-];
-
-const featuredSongs = [
-  { id: 1, title: "How Great is Our God", artist: "Chris Tomlin", key: "G", tempo: "84 BPM", category: "Worship", participants: 1245 },
-  { id: 2, title: "Amazing Grace", artist: "Traditional", key: "D", tempo: "72 BPM", category: "Hymn", participants: 2341 },
-  { id: 3, title: "Oceans (Where Feet May Fail)", artist: "Hillsong United", key: "D", tempo: "69 BPM", category: "Contemporary", participants: 987 },
-  { id: 4, title: "Way Maker", artist: "Sinach", key: "E", tempo: "78 BPM", category: "Worship", participants: 1567 },
-  { id: 5, title: "Great Are You Lord", artist: "All Sons & Daughters", key: "A", tempo: "65 BPM", category: "Worship", participants: 678 },
-  { id: 6, title: "10,000 Reasons (Bless the Lord)", artist: "Matt Redman", key: "G", tempo: "74 BPM", category: "Contemporary", participants: 1890 },
-];
-
-const categories = [
-  { name: "Worship", count: 45, color: "bg-primary text-white" },
-  { name: "Hymns", count: 120, color: "bg-amber-600 text-white" },
-  { name: "Gospel", count: 38, color: "bg-purple-600 text-white" },
-  { name: "Contemporary", count: 67, color: "bg-blue-600 text-white" },
-  { name: "Christmas", count: 29, color: "bg-green-600 text-white" },
-  { name: "Kids", count: 22, color: "bg-pink-500 text-white" },
-];
-
-const newReleases = [
-  { title: "Emmanuel (Praise the Lord)", artist: "BFC Worship Team", date: "This Week", streams: 2345 },
-  { title: "Jehovah Provider", artist: "Grace Voices", date: "This Month", streams: 5678 },
-  { title: "Faithful God", artist: "Community Choir", date: "This Month", streams: 3456 },
 ];
 
 const tips = [
@@ -44,10 +18,7 @@ const tips = [
 ];
 
 export default function SingAlong() {
-  const [search, setSearch] = useState("");
-  const { joinSession, startActivity, explore, joinCommunity } = useActionCTA();
-
-  const filtered = featuredSongs.filter(s => s.title.toLowerCase().includes(search.toLowerCase()) || s.artist.toLowerCase().includes(search.toLowerCase()));
+  const { joinSession, joinCommunity } = useActionCTA();
 
   return (
     <div className="min-h-screen bg-background">
@@ -92,99 +63,30 @@ export default function SingAlong() {
         </div>
       </section>
 
-      {/* Song Library */}
-      <section className="bg-muted/30 py-16">
-        <div className="container mx-auto px-4">
-          <div className="text-center mb-8">
-            <h2 className="text-3xl font-bold mb-2">Song Library</h2>
-            <p className="text-muted-foreground">Access lyrics, chords, and backing tracks</p>
-          </div>
-          <div className="relative max-w-md mx-auto mb-8">
-            <Input className="rounded-full pl-4" placeholder="Search songs or artists..." value={search} onChange={(e) => setSearch(e.target.value)} />
-          </div>
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-5">
-            {filtered.map((song) => (
-              <Card key={song.id} className="border border-border/50 shadow-sm hover:shadow-md transition-shadow">
-                <CardContent className="p-5">
-                  <div className="flex items-start justify-between mb-2">
-                    <div>
-                      <h3 className="font-bold">{song.title}</h3>
-                      <p className="text-sm text-muted-foreground">{song.artist}</p>
-                    </div>
-                    <Badge variant="outline" className="text-xs shrink-0">{song.category}</Badge>
-                  </div>
-                  <div className="grid grid-cols-2 gap-1 text-xs text-muted-foreground mb-4">
-                    <span>Key: <strong>{song.key}</strong></span>
-                    <span>Tempo: <strong>{song.tempo}</strong></span>
-                  </div>
-                  <div className="flex items-center text-xs text-muted-foreground mb-4">
-                    <Users className="w-3 h-3 mr-1" />{song.participants.toLocaleString()} singers
-                  </div>
-                  <div className="flex gap-2">
-                    <Button size="sm" className="flex-1 rounded-full font-bold" onClick={() => startActivity(`${song.title} Lyrics`)}>
-                      <Music2 className="w-3 h-3 mr-1" />Lyrics
-                    </Button>
-                    <Button size="sm" variant="outline" className="flex-1 rounded-full" onClick={() => startActivity(`${song.title} Chords`)}>
-                      Chords
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Categories */}
-      <section className="container mx-auto px-4 py-16">
-        <div className="text-center mb-10">
-          <h2 className="text-3xl font-bold mb-2">Browse by Category</h2>
-          <p className="text-muted-foreground">Find songs that match your worship style</p>
-        </div>
-        <div className="flex flex-wrap justify-center gap-4">
-          {categories.map((cat) => (
-            <button
-              key={cat.name}
-              className={`px-6 py-3 rounded-full font-bold text-sm shadow-sm hover:opacity-90 transition-opacity ${cat.color}`}
-              onClick={() => explore(cat.name)}
-            >
-              {cat.name} <span className="opacity-75 ml-1">({cat.count})</span>
-            </button>
-          ))}
-        </div>
-      </section>
-
-      {/* New Releases */}
+      {/* Song Library — Coming Soon */}
       <section className="bg-muted/30 py-16">
         <div className="container mx-auto px-4">
           <div className="text-center mb-10">
-            <h2 className="text-3xl font-bold mb-2">New Releases</h2>
-            <p className="text-muted-foreground">Original compositions from our worship community</p>
+            <h2 className="text-3xl font-bold mb-2">Song Library</h2>
+            <p className="text-muted-foreground">Songs and lyrics will appear here once uploaded</p>
           </div>
-          <div className="max-w-2xl mx-auto space-y-4">
-            {newReleases.map((r) => (
-              <div key={r.title} className="flex items-center gap-4 p-5 bg-card border border-border/50 rounded-2xl hover:shadow-md transition-shadow">
-                <div className="w-12 h-12 bg-primary/10 rounded-xl flex items-center justify-center shrink-0">
-                  <Music2 className="w-6 h-6 text-primary" />
+          <div className="max-w-lg mx-auto">
+            <Card className="border-2 border-dashed border-border/50 shadow-sm">
+              <CardContent className="p-12 text-center">
+                <div className="w-20 h-20 rounded-3xl bg-primary/10 flex items-center justify-center mx-auto mb-6">
+                  <Upload className="w-10 h-10 text-primary" />
                 </div>
-                <div className="flex-1">
-                  <h4 className="font-bold">{r.title}</h4>
-                  <p className="text-sm text-muted-foreground">{r.artist}</p>
-                </div>
-                <div className="text-right">
-                  <div className="text-xs text-muted-foreground mb-1">{r.date}</div>
-                  <div className="text-xs font-medium text-primary">{r.streams.toLocaleString()} plays</div>
-                </div>
-                <Button size="sm" className="rounded-full ml-2" onClick={() => startActivity(r.title)}>
-                  <Play className="w-3 h-3" />
-                </Button>
-              </div>
-            ))}
+                <h3 className="text-xl font-bold mb-3">Songs Coming Soon</h3>
+                <p className="text-muted-foreground text-sm leading-relaxed">
+                  The song library is being prepared. Once songs are uploaded by the admin, they will appear here with lyrics, chord charts, and backing tracks.
+                </p>
+              </CardContent>
+            </Card>
           </div>
         </div>
       </section>
 
-      {/* Tips */}
+      {/* Worship Tips */}
       <section className="container mx-auto px-4 py-16">
         <div className="text-center mb-10">
           <h2 className="text-3xl font-bold mb-2">Worship Tips</h2>
