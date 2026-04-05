@@ -8,7 +8,7 @@ export { users, sessions };
 export const profiles = pgTable("profiles", {
   id: serial("id").primaryKey(),
   userId: text("user_id").notNull().references(() => users.id),
-  role: text("role").default("student"), // student, admin, instructor
+  role: text("role").default("student"),
   locale: text("locale").default("en"),
   theme: text("theme").default("system"),
 });
@@ -28,7 +28,7 @@ export const courses = pgTable("courses", {
   slug: text("slug").notNull().unique(),
   title: text("title").notNull(),
   description: text("description").notNull(),
-  price: integer("price").notNull().default(0), // in cents, 0 = free
+  price: integer("price").notNull().default(0),
   level: text("level").default("beginner"),
   duration: text("duration"),
   imageUrl: text("image_url"),
@@ -48,8 +48,8 @@ export const lessons = pgTable("lessons", {
   moduleId: integer("module_id").notNull().references(() => modules.id),
   title: text("title").notNull(),
   videoUrl: text("video_url"),
-  content: text("content"), // Rich text or MDX
-  duration: integer("duration").default(0), // in seconds
+  content: text("content"),
+  duration: integer("duration").default(0),
   order: integer("order").notNull().default(0),
   isFreePreview: boolean("is_free_preview").default(false),
 });
@@ -59,7 +59,7 @@ export const enrollments = pgTable("enrollments", {
   userId: text("user_id").notNull().references(() => users.id),
   courseId: integer("course_id").notNull().references(() => courses.id),
   enrolledAt: timestamp("enrolled_at").defaultNow(),
-  status: text("status").default("active"), // active, completed, cancelled
+  status: text("status").default("active"),
 });
 
 export const progress = pgTable("progress", {
@@ -72,54 +72,111 @@ export const progress = pgTable("progress", {
 export const activitySubmissions = pgTable("activity_submissions", {
   id: serial("id").primaryKey(),
   userId: text("user_id").notNull().references(() => users.id),
-  activityType: text("activity_type").notNull(), // e.g., 'testimony-along', 'pray-along', etc.
+  activityType: text("activity_type").notNull(),
   title: text("title").notNull(),
   content: text("content").notNull(),
   mediaUrl: text("media_url"),
   submittedAt: timestamp("submitted_at").defaultNow(),
 });
 
+// ── CMS Content Tables ────────────────────────────────────────────────────
+
+export const songs = pgTable("songs", {
+  id: serial("id").primaryKey(),
+  title: text("title").notNull(),
+  artist: text("artist"),
+  category: text("category").notNull().default("Worship"),
+  songKey: text("song_key"),
+  tempo: text("tempo"),
+  lyrics: text("lyrics"),
+  chords: text("chords"),
+  displayOn: text("display_on").notNull().default("sing-along"), // sing-along | worship | both
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const quizQuestions = pgTable("quiz_questions", {
+  id: serial("id").primaryKey(),
+  scripture: text("scripture").notNull(),
+  question: text("question").notNull(),
+  optionA: text("option_a").notNull(),
+  optionB: text("option_b").notNull(),
+  optionC: text("option_c").notNull(),
+  optionD: text("option_d").notNull(),
+  correctOption: integer("correct_option").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const wordSearchWords = pgTable("word_search_words", {
+  id: serial("id").primaryKey(),
+  word: text("word").notNull(),
+  category: text("category").notNull().default("places"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const crosswordPuzzles = pgTable("crossword_puzzles", {
+  id: serial("id").primaryKey(),
+  title: text("title").notNull(),
+  data: text("data").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const testimonies = pgTable("testimonies", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull(),
+  location: text("location"),
+  category: text("category").notNull().default("General"),
+  title: text("title").notNull(),
+  story: text("story").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// ── Zod Schemas ───────────────────────────────────────────────────────────
+
 export const insertActivitySubmissionSchema = createInsertSchema(activitySubmissions).omit({ id: true, submittedAt: true });
+export const insertSongSchema = createInsertSchema(songs).omit({ id: true, createdAt: true });
+export const insertQuizQuestionSchema = createInsertSchema(quizQuestions).omit({ id: true, createdAt: true });
+export const insertWordSearchWordSchema = createInsertSchema(wordSearchWords).omit({ id: true, createdAt: true });
+export const insertCrosswordPuzzleSchema = createInsertSchema(crosswordPuzzles).omit({ id: true, createdAt: true });
+export const insertTestimonySchema = createInsertSchema(testimonies).omit({ id: true, createdAt: true });
+
+// ── Types ─────────────────────────────────────────────────────────────────
+
 export type ActivitySubmission = typeof activitySubmissions.$inferSelect;
 export type InsertActivitySubmission = z.infer<typeof insertActivitySubmissionSchema>;
+export type Song = typeof songs.$inferSelect;
+export type InsertSong = z.infer<typeof insertSongSchema>;
+export type QuizQuestion = typeof quizQuestions.$inferSelect;
+export type InsertQuizQuestion = z.infer<typeof insertQuizQuestionSchema>;
+export type WordSearchWord = typeof wordSearchWords.$inferSelect;
+export type InsertWordSearchWord = z.infer<typeof insertWordSearchWordSchema>;
+export type CrosswordPuzzle = typeof crosswordPuzzles.$inferSelect;
+export type InsertCrosswordPuzzle = z.infer<typeof insertCrosswordPuzzleSchema>;
+export type Testimony = typeof testimonies.$inferSelect;
+export type InsertTestimony = z.infer<typeof insertTestimonySchema>;
 
 export const coursesRelations = relations(courses, ({ one, many }) => ({
-  track: one(tracks, {
-    fields: [courses.trackId],
-    references: [tracks.id],
-  }),
+  track: one(tracks, { fields: [courses.trackId], references: [tracks.id] }),
   modules: many(modules),
 }));
 
 export const modulesRelations = relations(modules, ({ one, many }) => ({
-  course: one(courses, {
-    fields: [modules.courseId],
-    references: [courses.id],
-  }),
+  course: one(courses, { fields: [modules.courseId], references: [courses.id] }),
   lessons: many(lessons),
 }));
 
 export const lessonsRelations = relations(lessons, ({ one }) => ({
-  module: one(modules, {
-    fields: [lessons.moduleId],
-    references: [modules.id],
-  }),
+  module: one(modules, { fields: [lessons.moduleId], references: [modules.id] }),
 }));
 
 export const enrollmentsRelations = relations(enrollments, ({ one }) => ({
-  course: one(courses, {
-    fields: [enrollments.courseId],
-    references: [courses.id],
-  }),
+  course: one(courses, { fields: [enrollments.courseId], references: [courses.id] }),
 }));
 
-// Zod schemas
 export const insertTrackSchema = createInsertSchema(tracks).omit({ id: true });
 export const insertCourseSchema = createInsertSchema(courses).omit({ id: true });
 export const insertModuleSchema = createInsertSchema(modules).omit({ id: true });
 export const insertLessonSchema = createInsertSchema(lessons).omit({ id: true });
 
-// Types
 export type Track = typeof tracks.$inferSelect;
 export type Course = typeof courses.$inferSelect;
 export type Module = typeof modules.$inferSelect;

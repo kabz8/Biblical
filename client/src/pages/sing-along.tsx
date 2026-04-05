@@ -1,14 +1,10 @@
+import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Mic2, Play, Music2, Users, Heart, Star, Upload } from "lucide-react";
+import { Mic2, Music2, Users, Heart, Star, Loader2, ChevronDown, ChevronUp } from "lucide-react";
 import { useActionCTA } from "@/hooks/use-action-cta";
-
-const liveSessions = [
-  { id: 1, title: "Sunday Morning Praise", host: "Worship Team", participants: 234, genre: "Contemporary", status: "Live", time: "Now" },
-  { id: 2, title: "Hymns & Classics", host: "Sister Agnes", participants: 89, genre: "Traditional", status: "Starting Soon", time: "In 15 min" },
-  { id: 3, title: "Gospel Choir Night", host: "Grace Choir", participants: 312, genre: "Gospel", status: "Live", time: "Now" },
-];
 
 const tips = [
   { icon: <Heart className="w-5 h-5 text-primary" />, title: "Sing from the Heart", desc: "Worship is about intimacy with God, not performance. Focus on the meaning of the words you sing." },
@@ -17,8 +13,44 @@ const tips = [
   { icon: <Music2 className="w-5 h-5 text-primary" />, title: "Use the Toolkit", desc: "Access chord charts and backing tracks to improve your musical ability and lead others in worship." },
 ];
 
+function SongCard({ song }: { song: any }) {
+  const [expanded, setExpanded] = useState(false);
+  return (
+    <Card className="border border-border/50 shadow-sm hover:shadow-md transition-shadow">
+      <CardContent className="p-5">
+        <div className="flex items-start justify-between mb-2">
+          <div className="flex-1 min-w-0">
+            <h3 className="font-bold truncate">{song.title}</h3>
+            <p className="text-sm text-muted-foreground">{song.artist}</p>
+          </div>
+          <Badge variant="outline" className="text-xs shrink-0 ml-2">{song.category}</Badge>
+        </div>
+        <div className="grid grid-cols-2 gap-1 text-xs text-muted-foreground mb-3">
+          {song.songKey && <span>Key: <strong>{song.songKey}</strong></span>}
+          {song.tempo && <span>Tempo: <strong>{song.tempo}</strong></span>}
+        </div>
+        {(song.lyrics || song.chords) && (
+          <button onClick={() => setExpanded(e => !e)} className="flex items-center gap-1 text-xs text-primary font-bold mb-2">
+            {expanded ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+            {expanded ? "Hide" : "View"} lyrics & chords
+          </button>
+        )}
+        {expanded && (
+          <div className="space-y-3 mt-2">
+            {song.lyrics && <div><p className="text-xs font-bold text-muted-foreground uppercase mb-1">Lyrics</p><pre className="text-sm whitespace-pre-wrap font-sans leading-relaxed text-foreground">{song.lyrics}</pre></div>}
+            {song.chords && <div><p className="text-xs font-bold text-muted-foreground uppercase mb-1">Chords</p><pre className="text-sm whitespace-pre-wrap font-mono leading-relaxed text-foreground">{song.chords}</pre></div>}
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
 export default function SingAlong() {
-  const { joinSession, joinCommunity } = useActionCTA();
+  const { joinCommunity } = useActionCTA();
+  const { data: allSongs = [], isLoading } = useQuery<any[]>({ queryKey: ["/api/songs"] });
+
+  const songs = allSongs.filter((s: any) => s.displayOn === "sing-along" || s.displayOn === "both");
 
   return (
     <div className="min-h-screen bg-background">
@@ -33,56 +65,26 @@ export default function SingAlong() {
         </div>
       </section>
 
-      {/* Live Sessions */}
-      <section className="container mx-auto px-4 py-16">
-        <div className="text-center mb-10">
-          <h2 className="text-3xl font-bold mb-2">Live Worship Sessions</h2>
-          <p className="text-muted-foreground">Sing together with others right now</p>
-        </div>
-        <div className="grid md:grid-cols-3 gap-6">
-          {liveSessions.map((s) => (
-            <Card key={s.id} className="border border-border/50 shadow-md hover:shadow-lg transition-shadow overflow-hidden">
-              <div className="h-1 w-full bg-primary" />
-              <CardContent className="p-6">
-                <div className="flex items-center gap-2 mb-3">
-                  <Badge className={`text-xs text-white ${s.status === "Live" ? "bg-red-500" : "bg-amber-500"}`}>{s.status}</Badge>
-                  <span className="text-xs text-muted-foreground">{s.time}</span>
-                </div>
-                <h3 className="font-bold text-lg mb-1">{s.title}</h3>
-                <p className="text-sm text-muted-foreground mb-1">Host: {s.host}</p>
-                <Badge variant="outline" className="text-xs mb-4">{s.genre}</Badge>
-                <div className="flex items-center gap-2 mb-5 text-sm text-muted-foreground">
-                  <Users className="w-4 h-4" />{s.participants} singing now
-                </div>
-                <Button className="w-full font-bold rounded-full" onClick={() => joinSession(s.title)}>
-                  <Play className="w-4 h-4 mr-2" />Join Session
-                </Button>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      </section>
-
-      {/* Song Library — Coming Soon */}
+      {/* Song Library */}
       <section className="bg-muted/30 py-16">
         <div className="container mx-auto px-4">
           <div className="text-center mb-10">
             <h2 className="text-3xl font-bold mb-2">Song Library</h2>
-            <p className="text-muted-foreground">Songs and lyrics will appear here once uploaded</p>
+            <p className="text-muted-foreground">Lyrics and chord charts for your worship</p>
           </div>
-          <div className="max-w-lg mx-auto">
-            <Card className="border-2 border-dashed border-border/50 shadow-sm">
-              <CardContent className="p-12 text-center">
-                <div className="w-20 h-20 rounded-3xl bg-primary/10 flex items-center justify-center mx-auto mb-6">
-                  <Upload className="w-10 h-10 text-primary" />
-                </div>
-                <h3 className="text-xl font-bold mb-3">Songs Coming Soon</h3>
-                <p className="text-muted-foreground text-sm leading-relaxed">
-                  The song library is being prepared. Once songs are uploaded by the admin, they will appear here with lyrics, chord charts, and backing tracks.
-                </p>
-              </CardContent>
-            </Card>
-          </div>
+          {isLoading ? (
+            <div className="flex justify-center py-16"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div>
+          ) : songs.length === 0 ? (
+            <div className="text-center py-16">
+              <Music2 className="w-16 h-16 text-muted-foreground/30 mx-auto mb-4" />
+              <h3 className="text-xl font-bold mb-2">Songs Coming Soon</h3>
+              <p className="text-muted-foreground">Songs will be published here by the admin. Check back soon!</p>
+            </div>
+          ) : (
+            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-5">
+              {songs.map((song: any) => <SongCard key={song.id} song={song} />)}
+            </div>
+          )}
         </div>
       </section>
 
@@ -112,7 +114,7 @@ export default function SingAlong() {
           <h2 className="text-3xl font-bold mb-3">Raise Your Voice in Praise</h2>
           <p className="text-white/75 max-w-xl mx-auto mb-8">Join thousands of believers lifting their voices together in worship of our great God.</p>
           <Button size="lg" className="bg-white text-primary hover:bg-white/90 font-bold px-10 rounded-full" onClick={joinCommunity}>
-            Start Singing
+            Join the Community
           </Button>
         </div>
       </section>
