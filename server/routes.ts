@@ -231,11 +231,62 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
         const { trackSlug, ...rest } = c;
         await db.insert(coursesTable).values({ ...rest, trackId, isPublished: true }).onConflictDoUpdate({ target: coursesTable.slug, set: { title: rest.title } });
       }
+      // Quiz Questions
+      const { quizQuestions: quizTable, wordSearchWords: wsTable, crosswordPuzzles: cwTable } = await import("@shared/schema");
+      const existingQuiz = await db.select().from(quizTable).limit(1);
+      if (existingQuiz.length === 0) {
+        const seedQuiz = [
+          { scripture: "Matthew 6:24", question: "According to Jesus, what cannot a person serve two masters of at the same time?", optionA: "God and man", optionB: "God and Money", optionC: "Truth and lies", optionD: "Faith and fear", correctOption: 1 },
+          { scripture: "Proverbs 22:7", question: "What does Proverbs 22:7 say about the borrower?", optionA: "The borrower is wise", optionB: "The borrower is free", optionC: "The borrower is slave to the lender", optionD: "The borrower is blessed", correctOption: 2 },
+          { scripture: "Malachi 3:10", question: "What does God challenge us to do in Malachi 3:10 to test His faithfulness?", optionA: "Pray without ceasing", optionB: "Bring the full tithe into the storehouse", optionC: "Give to the poor generously", optionD: "Fast and seek His face", correctOption: 1 },
+          { scripture: "Luke 16:11", question: "If you have not been trustworthy with worldly wealth, what will God not give you?", optionA: "Earthly riches", optionB: "Wisdom", optionC: "True riches", optionD: "Eternal life", correctOption: 2 },
+          { scripture: "Philippians 4:19", question: "Paul promises that God will supply every need according to what?", optionA: "Your faith and prayers", optionB: "His glorious riches in Christ Jesus", optionC: "The measure of your giving", optionD: "The size of your church", correctOption: 1 },
+          { scripture: "Deuteronomy 8:18", question: "Who gives us the power to produce wealth?", optionA: "Our own intelligence", optionB: "Our labour and effort", optionC: "God", optionD: "Our community", correctOption: 2 },
+          { scripture: "Proverbs 13:11", question: "According to Proverbs 13:11, how does wealth gathered in a hurry disappear?", optionA: "Slowly over time", optionB: "All at once in disaster", optionC: "It vanishes like smoke", optionD: "It quickly diminishes", correctOption: 3 },
+          { scripture: "1 Timothy 6:10", question: "What is described as 'a root of all kinds of evil'?", optionA: "Pride", optionB: "Greed", optionC: "The love of money", optionD: "Debt", correctOption: 2 },
+        ];
+        await db.insert(quizTable).values(seedQuiz);
+      }
+
+      // Word Search Words
+      const existingWS = await db.select().from(wsTable).limit(1);
+      if (existingWS.length === 0) {
+        const seedWS = [
+          { word: "BETHLEHEM", category: "places" }, { word: "JERUSALEM", category: "places" }, { word: "NAZARETH", category: "places" },
+          { word: "JERICHO", category: "places" }, { word: "GALILEE", category: "places" }, { word: "BETHANY", category: "places" },
+          { word: "CAPERNAUM", category: "places" }, { word: "JORDAN", category: "places" }, { word: "SINAI", category: "places" },
+          { word: "EDEN", category: "places" },
+          { word: "MATTHEW", category: "books" }, { word: "MARK", category: "books" }, { word: "LUKE", category: "books" },
+          { word: "JOHN", category: "books" }, { word: "ACTS", category: "books" }, { word: "ROMANS", category: "books" },
+          { word: "GALATIANS", category: "books" }, { word: "EPHESIANS", category: "books" }, { word: "HEBREWS", category: "books" },
+          { word: "REVELATION", category: "books" },
+        ];
+        await db.insert(wsTable).values(seedWS);
+      }
+
+      // Crossword Puzzle
+      const existingCW = await db.select().from(cwTable).limit(1);
+      if (existingCW.length === 0) {
+        // Pre-built layout for the starter crossword
+        const cwData = {
+          gridW: 11, gridH: 11,
+          words: [
+            { word: "STEWARD", clue: "One who manages another's resources faithfully", row: 0, col: 0, dir: "across", num: 1 },
+            { word: "TITHE", clue: "Giving ten percent of income to God", row: 0, col: 0, dir: "down", num: 1 },
+            { word: "FAITH", clue: "Trust and confidence placed in God", row: 2, col: 2, dir: "across", num: 3 },
+            { word: "GRACE", clue: "God's unmerited favour toward us", row: 0, col: 6, dir: "down", num: 2 },
+            { word: "WISDOM", clue: "Godly insight for making sound decisions", row: 4, col: 0, dir: "across", num: 4 },
+            { word: "DEBT", clue: "What the borrower owes the lender", row: 1, col: 4, dir: "down", num: 5 },
+            { word: "SOWING", clue: "The act of giving that leads to reaping", row: 6, col: 2, dir: "across", num: 6 },
+            { word: "TRUST", clue: "Relying on God for all provision", row: 2, col: 8, dir: "down", num: 7 },
+            { word: "BLESSING", clue: "God's favour and abundance poured out", row: 8, col: 0, dir: "across", num: 8 },
+            { word: "MONEY", clue: "A tool, not a master — to be stewarded", row: 4, col: 8, dir: "down", num: 9 },
+          ],
+        };
+        await db.insert(cwTable).values({ title: "Biblical Finance Basics", data: JSON.stringify(cwData) });
+      }
+
       console.log("[seed] Database ready.");
-    } catch (err) {
-      console.error("[seed] Error:", err);
-    }
-  }
 
   seedAll().catch(console.error);
   return httpServer;

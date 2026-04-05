@@ -1,9 +1,9 @@
-import { useState } from "react";
+import { useEffect } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Card, CardContent, CardHeader, SheetTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -27,11 +27,7 @@ export default function AuthPage() {
   const { user, login, register } = useAuth();
   const [, setLocation] = useLocation();
 
-  if (user) {
-    setLocation("/");
-    return null;
-  }
-
+  // Always call hooks first — redirect as a side effect
   const loginForm = useForm({
     resolver: zodResolver(loginSchema),
     defaultValues: { email: "", password: "" },
@@ -41,6 +37,12 @@ export default function AuthPage() {
     resolver: zodResolver(registerSchema),
     defaultValues: { email: "", password: "", firstName: "", lastName: "" },
   });
+
+  useEffect(() => {
+    if (user) setLocation("/");
+  }, [user, setLocation]);
+
+  if (user) return null;
 
   return (
     <div className="min-h-[calc(100vh-4rem)] flex items-center justify-center p-4 bg-muted/30">
@@ -55,7 +57,7 @@ export default function AuthPage() {
               <TabsTrigger value="login">Login</TabsTrigger>
               <TabsTrigger value="register">Register</TabsTrigger>
             </TabsList>
-            
+
             <TabsContent value="login">
               <Form {...loginForm}>
                 <form onSubmit={loginForm.handleSubmit((data) => login(data))} className="space-y-4">
