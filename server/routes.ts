@@ -3,11 +3,10 @@ import type { Server } from "http";
 import { storage } from "./storage";
 import { api } from "@shared/routes";
 import { z } from "zod";
-import { registerAuthRoutes, setupAuth, authStorage } from "./replit_integrations/auth";
-import { isAuthenticated } from "./replit_integrations/auth/replitAuth";
-import bcrypt from "bcryptjs";
+import { registerAuthRoutes, setupAuth } from "./replit_integrations/auth";
+import { isAuthenticated, supabaseAdmin } from "./replit_integrations/auth/replitAuth";
+import { authStorage } from "./replit_integrations/auth/storage";
 import { db } from "./db";
-import { users } from "@shared/models/auth";
 
 import {
   insertActivitySubmissionSchema,
@@ -19,10 +18,24 @@ import {
 } from "@shared/schema";
 
 const ADMIN_EMAIL = "admin@biblicalfinancialcourses.com";
+const ADMIN_PASSWORD = "Mango2026!?";
 
-const isAdmin: RequestHandler = (req: any, res, next) => {
-  if (req.isAuthenticated() && req.user?.email === ADMIN_EMAIL) return next();
-  res.status(403).json({ message: "Forbidden — admin only" });
+/**
+ * isAdmin middleware — verifies Supabase JWT and checks admin email.
+ */
+const isAdmin: RequestHandler = async (req: any, res, next) => {
+  if (!supabaseAdmin) return res.status(503).json({ message: "Auth not configured" });
+  const authHeader = req.headers.authorization;
+  if (!authHeader?.startsWith("Bearer ")) {
+    return res.status(403).json({ message: "Forbidden — admin only" });
+  }
+  const token = authHeader.split(" ")[1];
+  const { data, error } = await supabaseAdmin.auth.getUser(token);
+  if (error || !data.user || data.user.email !== ADMIN_EMAIL) {
+    return res.status(403).json({ message: "Forbidden — admin only" });
+  }
+  req.user = data.user;
+  next();
 };
 
 export async function registerRoutes(httpServer: Server, app: Express): Promise<Server> {
@@ -35,7 +48,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     res.json(submissions);
   });
 
-  app.post("/api/activity-submissions", isAuthenticated, async (req: any, res) => {
+  app.post("/api/activity-submissions", isAuthenticated as any, async (req: any, res) => {
     try {
       const data = insertActivitySubmissionSchema.parse({ ...req.body, userId: req.user.id });
       const submission = await storage.createActivitySubmission(data);
@@ -56,10 +69,10 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
   });
 
   // ── Enrollments ────────────────────────────────────────────────────────
-  app.get(api.enrollments.list.path, isAuthenticated, async (req: any, res) => {
+  app.get(api.enrollments.list.path, isAuthenticated as any, async (req: any, res) => {
     res.json(await storage.getEnrollments(req.user.id));
   });
-  app.post(api.enrollments.create.path, isAuthenticated, async (req: any, res) => {
+  app.post(api.enrollments.create.path, isAuthenticated as any, async (req: any, res) => {
     try {
       const input = api.enrollments.create.input.parse(req.body);
       const enrollment = await storage.createEnrollment(req.user.id, input.courseId);
@@ -71,10 +84,10 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
   });
 
   // ── Progress ───────────────────────────────────────────────────────────
-  app.get(api.progress.list.path, isAuthenticated, async (req: any, res) => {
+  app.get(api.progress.list.path, isAuthenticated as any, async (req: any, res) => {
     res.json(await storage.getProgress(req.user.id));
   });
-  app.post(api.progress.markComplete.path, isAuthenticated, async (req: any, res) => {
+  app.post(api.progress.markComplete.path, isAuthenticated as any, async (req: any, res) => {
     try {
       const input = api.progress.markComplete.input.parse(req.body);
       const record = await storage.markLessonComplete(req.user.id, input.lessonId);
@@ -86,7 +99,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
   });
 
   // ── Admin Stats ────────────────────────────────────────────────────────
-  app.get(api.admin.stats.path, isAuthenticated, async (_, res) => {
+  app.get(api.admin.stats.path, isAuthenticated as any, async (_, res) => {
     res.json({ totalUsers: 0, totalRevenue: 0, activeEnrollments: 0 });
   });
 
@@ -99,8 +112,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
   app.post("/api/admin/songs", isAdmin, async (req, res) => {
     try {
       const data = insertSongSchema.parse(req.body);
-      const song = await storage.createSong(data);
-      res.status(201).json(song);
+      res.status(201).json(await storage.createSong(data));
     } catch (err) {
       if (err instanceof z.ZodError) return res.status(400).json({ message: err.errors[0].message });
       res.status(500).json({ message: "Failed to create song" });
@@ -118,8 +130,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
   app.post("/api/admin/quiz-questions", isAdmin, async (req, res) => {
     try {
       const data = insertQuizQuestionSchema.parse(req.body);
-      const q = await storage.createQuizQuestion(data);
-      res.status(201).json(q);
+      res.status(201).json(await storage.createQuizQuestion(data));
     } catch (err) {
       if (err instanceof z.ZodError) return res.status(400).json({ message: err.errors[0].message });
       res.status(500).json({ message: "Failed to create question" });
@@ -138,8 +149,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
   app.post("/api/admin/word-search-words", isAdmin, async (req, res) => {
     try {
       const data = insertWordSearchWordSchema.parse(req.body);
-      const w = await storage.createWordSearchWord(data);
-      res.status(201).json(w);
+      res.status(201).json(await storage.createWordSearchWord(data));
     } catch (err) {
       if (err instanceof z.ZodError) return res.status(400).json({ message: err.errors[0].message });
       res.status(500).json({ message: "Failed to add word" });
@@ -162,8 +172,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
   app.post("/api/admin/crosswords", isAdmin, async (req, res) => {
     try {
       const data = insertCrosswordPuzzleSchema.parse(req.body);
-      const p = await storage.createCrosswordPuzzle(data);
-      res.status(201).json(p);
+      res.status(201).json(await storage.createCrosswordPuzzle(data));
     } catch (err) {
       if (err instanceof z.ZodError) return res.status(400).json({ message: err.errors[0].message });
       res.status(500).json({ message: "Failed to create crossword" });
@@ -181,8 +190,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
   app.post("/api/admin/testimonies", isAdmin, async (req, res) => {
     try {
       const data = insertTestimonySchema.parse(req.body);
-      const t = await storage.createTestimony(data);
-      res.status(201).json(t);
+      res.status(201).json(await storage.createTestimony(data));
     } catch (err) {
       if (err instanceof z.ZodError) return res.status(400).json({ message: err.errors[0].message });
       res.status(500).json({ message: "Failed to create testimony" });
@@ -193,18 +201,44 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     res.sendStatus(204);
   });
 
-  // ── Seeds ──────────────────────────────────────────────────────────────
+  // ── Database & Supabase Auth Seed ─────────────────────────────────────
   async function seedAll() {
     try {
-      // Admin user
-      const existing = await authStorage.getUserByEmail(ADMIN_EMAIL);
-      if (!existing) {
-        const hash = await bcrypt.hash("Mango2026!?", 12);
-        await db.insert(users).values({ email: ADMIN_EMAIL, password: hash, firstName: "Admin", lastName: "BFC" });
-        console.log("[seed] Admin user created.");
+      // ── Supabase Auth: ensure admin user exists ──────────────────────
+      if (supabaseAdmin) {
+        try {
+          const { data: list } = await supabaseAdmin.auth.admin.listUsers();
+          const adminExists = list?.users?.some((u: any) => u.email === ADMIN_EMAIL);
+          if (!adminExists) {
+            const { data: created, error } = await supabaseAdmin.auth.admin.createUser({
+              email: ADMIN_EMAIL,
+              password: ADMIN_PASSWORD,
+              email_confirm: true,
+              user_metadata: { first_name: "Admin", last_name: "BFC" },
+            });
+            if (error) {
+              console.warn("[seed] Could not create admin in Supabase Auth:", error.message);
+            } else {
+              console.log("[seed] Admin user created in Supabase Auth.");
+              // Mirror into public.users
+              await authStorage.upsertUser({
+                id: created.user.id,
+                email: ADMIN_EMAIL,
+                firstName: "Admin",
+                lastName: "BFC",
+              });
+            }
+          } else {
+            console.log("[seed] Admin user already exists in Supabase Auth.");
+          }
+        } catch (authErr: any) {
+          console.warn("[seed] Supabase Auth seed skipped:", authErr.message);
+        }
+      } else {
+        console.warn("[seed] supabaseAdmin not available — skipping Supabase Auth seed.");
       }
 
-      // Courses
+      // ── Course data ──────────────────────────────────────────────────
       const { tracks: tracksTable, courses: coursesTable } = await import("@shared/schema");
       const seedTracks = [
         { slug: "foundations", title: "Foundations of Stewardship", description: "Learn the biblical principles of managing money and resources with wisdom and faith.", order: 1 },
@@ -231,11 +265,13 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
         const { trackSlug, ...rest } = c;
         await db.insert(coursesTable).values({ ...rest, trackId, isPublished: true }).onConflictDoUpdate({ target: coursesTable.slug, set: { title: rest.title } });
       }
-      // Quiz Questions
+
+      // ── Game content ──────────────────────────────────────────────────
       const { quizQuestions: quizTable, wordSearchWords: wsTable, crosswordPuzzles: cwTable } = await import("@shared/schema");
+
       const existingQuiz = await db.select().from(quizTable).limit(1);
       if (existingQuiz.length === 0) {
-        const seedQuiz = [
+        await db.insert(quizTable).values([
           { scripture: "Matthew 6:24", question: "According to Jesus, what cannot a person serve two masters of at the same time?", optionA: "God and man", optionB: "God and Money", optionC: "Truth and lies", optionD: "Faith and fear", correctOption: 1 },
           { scripture: "Proverbs 22:7", question: "What does Proverbs 22:7 say about the borrower?", optionA: "The borrower is wise", optionB: "The borrower is free", optionC: "The borrower is slave to the lender", optionD: "The borrower is blessed", correctOption: 2 },
           { scripture: "Malachi 3:10", question: "What does God challenge us to do in Malachi 3:10 to test His faithfulness?", optionA: "Pray without ceasing", optionB: "Bring the full tithe into the storehouse", optionC: "Give to the poor generously", optionD: "Fast and seek His face", correctOption: 1 },
@@ -244,14 +280,12 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
           { scripture: "Deuteronomy 8:18", question: "Who gives us the power to produce wealth?", optionA: "Our own intelligence", optionB: "Our labour and effort", optionC: "God", optionD: "Our community", correctOption: 2 },
           { scripture: "Proverbs 13:11", question: "According to Proverbs 13:11, how does wealth gathered in a hurry disappear?", optionA: "Slowly over time", optionB: "All at once in disaster", optionC: "It vanishes like smoke", optionD: "It quickly diminishes", correctOption: 3 },
           { scripture: "1 Timothy 6:10", question: "What is described as 'a root of all kinds of evil'?", optionA: "Pride", optionB: "Greed", optionC: "The love of money", optionD: "Debt", correctOption: 2 },
-        ];
-        await db.insert(quizTable).values(seedQuiz);
+        ]);
       }
 
-      // Word Search Words
       const existingWS = await db.select().from(wsTable).limit(1);
       if (existingWS.length === 0) {
-        const seedWS = [
+        await db.insert(wsTable).values([
           { word: "BETHLEHEM", category: "places" }, { word: "JERUSALEM", category: "places" }, { word: "NAZARETH", category: "places" },
           { word: "JERICHO", category: "places" }, { word: "GALILEE", category: "places" }, { word: "BETHANY", category: "places" },
           { word: "CAPERNAUM", category: "places" }, { word: "JORDAN", category: "places" }, { word: "SINAI", category: "places" },
@@ -260,14 +294,11 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
           { word: "JOHN", category: "books" }, { word: "ACTS", category: "books" }, { word: "ROMANS", category: "books" },
           { word: "GALATIANS", category: "books" }, { word: "EPHESIANS", category: "books" }, { word: "HEBREWS", category: "books" },
           { word: "REVELATION", category: "books" },
-        ];
-        await db.insert(wsTable).values(seedWS);
+        ]);
       }
 
-      // Crossword Puzzle
       const existingCW = await db.select().from(cwTable).limit(1);
       if (existingCW.length === 0) {
-        // Pre-built layout for the starter crossword
         const cwData = {
           gridW: 11, gridH: 11,
           words: [

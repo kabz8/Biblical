@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
+import { supabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -103,17 +104,14 @@ function LoginForm({ onLogin }: { onLogin: () => void }) {
     e.preventDefault();
     setLoading(true); setError("");
     try {
-      const res = await fetch("/api/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({ email, password }),
-      });
-      if (!res.ok) { setError("Invalid email or password"); return; }
-      const user = await res.json();
-      if (user.email !== "admin@biblicalfinancialcourses.com") {
+      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+      if (error || !data.user) {
+        setError("Invalid email or password");
+        return;
+      }
+      if (data.user.email !== "admin@biblicalfinancialcourses.com") {
         setError("You do not have admin access.");
-        await fetch("/api/logout", { method: "POST", credentials: "include" });
+        await supabase.auth.signOut();
         return;
       }
       toast({ title: "Welcome, Admin!" });

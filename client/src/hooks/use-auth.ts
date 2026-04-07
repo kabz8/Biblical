@@ -1,77 +1,103 @@
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import type { User } from "@shared/models/auth";
-import { apiRequest } from "@/lib/queryClient";
+import { useState, useEffect } from "react";
+import { supabase } from "@/lib/supabase";
 import { useToast } from "@/hooks/use-toast";
+import type { User as SupabaseUser } from "@supabase/supabase-js";
 
-async function fetchUser(): Promise<User | null> {
-  const response = await fetch("/api/auth/user");
-  if (response.status === 401) return null;
-  if (!response.ok) throw new Error(`${response.status}: ${response.statusText}`);
-  return response.json();
+export type AppUser = {
+  id: string;
+  email: string;
+  firstName: string | null;
+  lastName: string | null;
+  profileImageUrl?: string | null;
+};
+
+function toAppUser(u: SupabaseUser): AppUser {
+  const meta = u.user_metadata || {};
+  return {
+    id: u.id,
+    email: u.email ?? "",
+    firstName: meta.first_name || meta.firstName || null,
+    lastName: meta.last_name || meta.lastName || null,
+    profileImageUrl: meta.avatar_url || null,
+  };
 }
 
 export function useAuth() {
-  const queryClient = useQueryClient();
+  const [user, setUser] = useState<AppUser | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
   const { toast } = useToast();
-  
-  const { data: user, isLoading, error } = useQuery<User | null>({
-    queryKey: ["/api/auth/user"],
-    queryFn: fetchUser,
-    retry: false,
-  });
 
-  const loginMutation = useMutation({
-    mutationFn: async (credentials: any) => {
-      const res = await apiRequest("POST", "/api/login", credentials);
-      return res.json();
-    },
-    onSuccess: (user) => {
-      queryClient.setQueryData(["/api/auth/user"], user);
-    },
-    onError: (error: Error) => {
-      toast({
-        title: "Login failed",
-        description: error.message,
-        variant: "destructive",
-      });
-    },
-  });
+  useEffect(() => {
+    // Initialise from existing session
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setUser(session?.user ? toAppUser(session.user) : null);
+      setIsLoading(false);
+    });
 
-  const registerMutation = useMutation({
-    mutationFn: async (data: any) => {
-      const res = await apiRequest("POST", "/api/register", data);
-      return res.json();
-    },
-    onSuccess: (user) => {
-      queryClient.setQueryData(["/api/auth/user"], user);
-    },
-    onError: (error: Error) => {
-      toast({
-        title: "Registration failed",
-        description: error.message,
-        variant: "destructive",
-      });
-    },
-  });
+    // Keep in sync with Supabase auth state changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ? toAppUser(session.user) : null);
+    });
 
-  const logoutMutation = useMutation({
-    mutationFn: async () => {
-      await apiRequest("POST", "/api/logout");
-    },
-    onSuccess: () => {
-      queryClient.setQueryData(["/api/auth/user"], null);
-    },
-  });
+    return () => subscription.unsubscribe();
+  }, []);
+
+  async function login({ email, password }: { email: string; password: string }) {
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error) {
+      toast({ title: "Login failed", description: error.message, variant: "destructive" });
+      throw error;
+    }
+    const appUser = toAppUser(data.user);
+    setUser(appUser);
+    return appUser;
+  }
+
+  async function register({ email, password, firstName, lastName }: {
+    email: string; password: string; firstName: string; lastName: string;
+  }) {
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: { data: { first_name: firstName, last_name: lastName } },
+    });
+    if (error) {
+      toast({ title: "Registration failed", description: error.message, variant: "destructive" });
+      throw error;
+    }
+    if (!data.user) {
+      toast({ title: "Check your email", description: "Please verify your email address to continue." });
+      return null;
+    }
+    const appUser = toAppUser(data.user);
+    setUser(appUser);
+    // Sync to our public.users table
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session?.access_token) {
+        await fetch("/api/auth/sync", {
+          method: "POST",
+          headers: { Authorization: `Bearer ${session.access_token}` },
+        });
+      }
+    } catch { /* non-fatal */ }
+    return appUser;
+  }
+
+  async function logout() {
+    await supabase.auth.signOut();
+    setUser(null);
+  }
 
   return {
     user,
     isLoading,
     isAuthenticated: !!user,
-    login: loginMutation.mutateAsync,
-    register: registerMutation.mutateAsync,
-    logout: logoutMutation.mutateAsync,
-    isLoggingIn: loginMutation.isPending,
-    isRegistering: registerMutation.isPending,
-    isLoggingOut: logoutMutation.isPending,
+    login,
+    register,
+    logout,
+    isLoggingIn: false,
+    isRegistering: false,
+    isLoggingOut: false,
   };
 }

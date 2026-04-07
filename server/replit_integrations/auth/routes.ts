@@ -1,50 +1,45 @@
 import type { Express } from "express";
-import passport from "passport";
-import bcrypt from "bcryptjs";
+import { isAuthenticated, supabaseAdmin } from "./replitAuth";
 import { authStorage } from "./storage";
-import { isAuthenticated } from "./replitAuth";
 
 export function registerAuthRoutes(app: Express): void {
-  app.post("/api/register", async (req, res) => {
+  /**
+   * GET /api/auth/user
+   * Verifies the Supabase JWT and returns the current user.
+   * Also lazily upserts the user into our public.users table.
+   */
+  app.get("/api/auth/user", isAuthenticated as any, async (req: any, res) => {
     try {
-      const { email, password, firstName, lastName } = req.body;
-      const existingUser = await authStorage.getUserByEmail(email);
-      if (existingUser) {
-        return res.status(400).json({ message: "User already exists" });
-      }
+      // Lazy-sync the Supabase user into our application users table
+      await authStorage.upsertUser({
+        id: req.user.id,
+        email: req.user.email,
+        firstName: req.user.firstName,
+        lastName: req.user.lastName,
+        profileImageUrl: req.user.profileImageUrl,
+      });
+    } catch {
+      // Non-fatal — still return the user from the JWT
+    }
+    res.json(req.user);
+  });
 
-      const hashedPassword = await bcrypt.hash(password, 10);
+  /**
+   * POST /api/auth/sync
+   * Called after registration to create the public.users record.
+   */
+  app.post("/api/auth/sync", isAuthenticated as any, async (req: any, res) => {
+    try {
       const user = await authStorage.upsertUser({
-        email,
-        password: hashedPassword,
-        firstName,
-        lastName,
+        id: req.user.id,
+        email: req.user.email,
+        firstName: req.user.firstName,
+        lastName: req.user.lastName,
+        profileImageUrl: req.user.profileImageUrl,
       });
-
-      req.login(user, (err) => {
-        if (err) return res.status(500).json({ message: "Login failed after registration" });
-        res.status(201).json(user);
-      });
-    } catch (error) {
-      res.status(500).json({ message: "Registration failed" });
+      res.status(201).json(user);
+    } catch (err) {
+      res.status(500).json({ message: "Failed to sync user" });
     }
-  });
-
-  app.post("/api/login", passport.authenticate("local"), (req, res) => {
-    res.json(req.user);
-  });
-
-  app.post("/api/logout", (req, res, next) => {
-    req.logout((err) => {
-      if (err) return next(err);
-      res.sendStatus(200);
-    });
-  });
-
-  app.get("/api/auth/user", (req, res) => {
-    if (!req.isAuthenticated()) {
-      return res.status(401).json({ message: "Unauthorized" });
-    }
-    res.json(req.user);
   });
 }
