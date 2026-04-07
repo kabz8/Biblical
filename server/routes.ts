@@ -287,6 +287,10 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       }
 
       console.log("[seed] Database ready.");
+    } catch (err) {
+      console.error("[seed] Error:", err);
+    }
+  }
 
   seedAll().catch(console.error);
   return httpServer;
