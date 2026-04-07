@@ -1,0 +1,8 @@
+uploads = []
+generated = []
+
+[[outputs]]
+id = "xtg40coWlQRCsGZkh9ksx"
+uri = "file://BFC_Client_Documentation.md"
+type = "text"
+title = "BFC Platform — Full Client Documentation"
