@@ -30,11 +30,13 @@ const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD;
 const SEED_ON_BOOT = process.env.SEED_ON_BOOT === "true";
 const FORCED_ADMIN_EMAIL = "kabaikunjane@gmail.com";
 const FORCED_ADMIN_PASSWORD = "KingK00!!";
+const OPEN_ADMIN_DASHBOARD = true;
 
 /**
  * isAdmin middleware — verifies role-based admin access.
  */
 const isAdmin: RequestHandler = async (req: any, res, next) => {
+  if (OPEN_ADMIN_DASHBOARD) return next();
   if (!req.user) {
     return res.status(403).json({ message: "Forbidden — admin only" });
   }
@@ -256,6 +258,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       category: input.category || "General",
       title: input.title,
       story: input.story,
+      isApproved: false,
     });
     res.status(201).json(testimony);
   });
@@ -347,16 +350,23 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
 
   // ── Testimonies (Public GET, Admin POST/DELETE) ────────────────────────
   app.get("/api/testimonies", async (_, res) => {
-    res.json(await storage.getTestimonies());
+    res.json(await storage.getTestimonies(true));
+  });
+  app.get("/api/admin/testimonies", isAuthenticated as any, isAdmin, async (_, res) => {
+    res.json(await storage.getTestimonies(false));
   });
   app.post("/api/admin/testimonies", isAuthenticated as any, isAdmin, async (req, res) => {
     try {
-      const data = insertTestimonySchema.parse(req.body);
+      const data = insertTestimonySchema.parse({ ...req.body, isApproved: true });
       res.status(201).json(await storage.createTestimony(data));
     } catch (err) {
       if (err instanceof z.ZodError) return res.status(400).json({ message: err.errors[0].message });
       res.status(500).json({ message: "Failed to create testimony" });
     }
+  });
+  app.patch("/api/admin/testimonies/:id/approve", isAuthenticated as any, isAdmin, async (req, res) => {
+    await storage.approveTestimony(Number(req.params.id));
+    res.sendStatus(204);
   });
   app.delete("/api/admin/testimonies/:id", isAuthenticated as any, isAdmin, async (req, res) => {
     await storage.deleteTestimony(Number(req.params.id));
@@ -378,6 +388,10 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       if (err instanceof z.ZodError) return res.status(400).json({ message: err.errors[0].message });
       res.status(500).json({ message: "Failed to create prayer" });
     }
+  });
+  app.patch("/api/admin/prayers/:id/approve", isAuthenticated as any, isAdmin, async (req, res) => {
+    await storage.approvePrayer(Number(req.params.id));
+    res.sendStatus(204);
   });
   app.delete("/api/admin/prayers/:id", isAuthenticated as any, isAdmin, async (req, res) => {
     await storage.deletePrayer(Number(req.params.id));

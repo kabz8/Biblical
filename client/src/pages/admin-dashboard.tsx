@@ -478,18 +478,27 @@ function CrosswordTab() {
 // ── Testimonies Tab ───────────────────────────────────────────────────────
 function TestimoniesTab() {
   const { toast } = useToast();
-  const { data: testimonies = [], isLoading } = useQuery<any[]>({ queryKey: ["/api/testimonies"] });
+  const { data: testimonies = [], isLoading } = useQuery<any[]>({ queryKey: ["/api/admin/testimonies"] });
   const [form, setForm] = useState({ name: "", location: "", category: "Debt Freedom", title: "", story: "" });
 
   const create = useMutation({
     mutationFn: () => apiRequest("POST", "/api/admin/testimonies", form),
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["/api/testimonies"] }); setForm({ name: "", location: "", category: "Debt Freedom", title: "", story: "" }); toast({ title: "Testimony added!" }); },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["/api/admin/testimonies"] }); setForm({ name: "", location: "", category: "Debt Freedom", title: "", story: "" }); toast({ title: "Testimony added!" }); },
     onError: () => toast({ title: "Failed", variant: "destructive" }),
+  });
+
+  const approve = useMutation({
+    mutationFn: (id: number) => apiRequest("PATCH", `/api/admin/testimonies/${id}/approve`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/testimonies"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/testimonies"] });
+      toast({ title: "Testimony approved" });
+    },
   });
 
   const del = useMutation({
     mutationFn: (id: number) => apiRequest("DELETE", `/api/admin/testimonies/${id}`),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["/api/testimonies"] }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["/api/admin/testimonies"] }),
   });
 
   return (
@@ -531,8 +540,14 @@ function TestimoniesTab() {
                     <div className="flex-1 min-w-0">
                       <p className="font-bold">{t.title}</p>
                       <p className="text-xs text-muted-foreground">{t.name} · {t.location} · <Badge variant="outline" className="text-xs">{t.category}</Badge></p>
+                      {!t.isApproved && <p className="text-xs text-amber-600 mt-1">Pending admin approval</p>}
                       <p className="text-sm text-muted-foreground mt-1 line-clamp-2">{t.story}</p>
                     </div>
+                    {!t.isApproved && (
+                      <Button variant="outline" size="sm" className="shrink-0" onClick={() => approve.mutate(t.id)}>
+                        Approve
+                      </Button>
+                    )}
                     <DeleteBtn onDelete={() => del.mutate(t.id)} />
                   </div>
                 ))}
@@ -561,6 +576,15 @@ function PrayersTab() {
   const del = useMutation({
     mutationFn: (id: number) => apiRequest("DELETE", `/api/admin/prayers/${id}`),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["/api/admin/prayers"] }),
+  });
+
+  const approve = useMutation({
+    mutationFn: (id: number) => apiRequest("PATCH", `/api/admin/prayers/${id}/approve`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/prayers"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/prayers"] });
+      toast({ title: "Prayer approved" });
+    },
   });
 
   return (
@@ -616,6 +640,11 @@ function PrayersTab() {
                       </p>
                       <p className="text-sm text-muted-foreground mt-1 line-clamp-2">{p.content}</p>
                     </div>
+                    {!p.isPublic && (
+                      <Button variant="outline" size="sm" className="shrink-0" onClick={() => approve.mutate(p.id)}>
+                        Approve
+                      </Button>
+                    )}
                     <DeleteBtn onDelete={() => del.mutate(p.id)} />
                   </div>
                 ))}
@@ -846,7 +875,6 @@ type TabId = typeof TABS[number]["id"];
 
 export default function AdminDashboard() {
   const [activeTab, setActiveTab] = useState<TabId>("courses");
-  const [loggedIn, setLoggedIn] = useState(false);
   const { toast } = useToast();
 
   const { data: user, isLoading, isError } = useQuery<any>({
@@ -857,11 +885,8 @@ export default function AdminDashboard() {
   async function handleLogout() {
     await fetch("/api/logout", { method: "POST", credentials: "include" });
     queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
-    setLoggedIn(false);
     toast({ title: "Logged out" });
   }
-
-  const isAdmin = user?.role === "admin";
 
   if (isLoading) {
     return (
@@ -886,10 +911,6 @@ export default function AdminDashboard() {
         </Card>
       </div>
     );
-  }
-
-  if (!user || !isAdmin) {
-    return <LoginForm onLogin={() => setLoggedIn(true)} />;
   }
 
   return (

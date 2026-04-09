@@ -41,6 +41,7 @@ function Router() {
         <Route path="/dashboard" component={Dashboard} />
         <Route path="/learn/:slug" component={CoursePlayer} />
         <Route path="/admin" component={AdminDashboard} />
+        <Route path="/admin/dashboard" component={AdminDashboard} />
         
         {/* Faith Activities — dedicated rich pages */}
         <Route path="/worship" component={WorshipPage} />

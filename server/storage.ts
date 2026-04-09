@@ -52,13 +52,15 @@ export interface IStorage {
   deleteCrosswordPuzzle(id: number): Promise<void>;
 
   // Testimonies
-  getTestimonies(): Promise<Testimony[]>;
+  getTestimonies(approvedOnly?: boolean): Promise<Testimony[]>;
   createTestimony(t: InsertTestimony): Promise<Testimony>;
+  approveTestimony(id: number): Promise<void>;
   deleteTestimony(id: number): Promise<void>;
 
   // Prayers
   getPrayers(isPublicOnly?: boolean): Promise<Prayer[]>;
   createPrayer(p: InsertPrayer): Promise<Prayer>;
+  approvePrayer(id: number): Promise<void>;
   deletePrayer(id: number): Promise<void>;
 }
 
@@ -110,8 +112,12 @@ export class DatabaseStorage implements IStorage {
   async deleteCrosswordPuzzle(id: number) { await db.delete(crosswordPuzzles).where(eq(crosswordPuzzles.id, id)); }
 
   // Testimonies
-  async getTestimonies() { return db.select().from(testimonies).orderBy(testimonies.createdAt); }
+  async getTestimonies(approvedOnly?: boolean) {
+    if (approvedOnly) return db.select().from(testimonies).where(eq(testimonies.isApproved, true)).orderBy(testimonies.createdAt);
+    return db.select().from(testimonies).orderBy(testimonies.createdAt);
+  }
   async createTestimony(t: InsertTestimony) { const [r] = await db.insert(testimonies).values(t).returning(); return r; }
+  async approveTestimony(id: number) { await db.update(testimonies).set({ isApproved: true }).where(eq(testimonies.id, id)); }
   async deleteTestimony(id: number) { await db.delete(testimonies).where(eq(testimonies.id, id)); }
 
   // Prayers
@@ -120,6 +126,7 @@ export class DatabaseStorage implements IStorage {
     return db.select().from(prayers).orderBy(prayers.createdAt);
   }
   async createPrayer(p: InsertPrayer) { const [r] = await db.insert(prayers).values(p).returning(); return r; }
+  async approvePrayer(id: number) { await db.update(prayers).set({ isPublic: true }).where(eq(prayers.id, id)); }
   async deletePrayer(id: number) { await db.delete(prayers).where(eq(prayers.id, id)); }
 }
 

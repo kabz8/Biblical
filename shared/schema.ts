@@ -151,6 +151,7 @@ export const testimonies = pgTable("testimonies", {
   category: text("category").notNull().default("General"),
   title: text("title").notNull(),
   story: text("story").notNull(),
+  isApproved: boolean("is_approved").notNull().default(false),
   createdAt: timestamp("created_at").defaultNow(),
 });
 

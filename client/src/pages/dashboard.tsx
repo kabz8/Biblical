@@ -112,9 +112,22 @@ export default function Dashboard() {
         <p className="text-muted-foreground text-lg">Pick up right where you left off.</p>
       </div>
 
-      <div className="grid lg:grid-cols-3 gap-8">
+      <div className="grid lg:grid-cols-4 gap-8">
+        <div className="lg:col-span-1">
+          <div className="bg-card border rounded-2xl p-5 sticky top-24">
+            <h3 className="font-bold text-lg mb-4">Dashboard Operations</h3>
+            <div className="space-y-2">
+              <a href="#learning" className="block rounded-lg px-3 py-2 text-sm hover:bg-muted">My Learning Path</a>
+              <a href="#payments" className="block rounded-lg px-3 py-2 text-sm hover:bg-muted">Payment History</a>
+              <a href="#profile-settings" className="block rounded-lg px-3 py-2 text-sm hover:bg-muted">Profile Settings</a>
+              <a href="#prayer-submit" className="block rounded-lg px-3 py-2 text-sm hover:bg-muted">Submit Prayer Request</a>
+              <a href="#testimony-submit" className="block rounded-lg px-3 py-2 text-sm hover:bg-muted">Share Testimony</a>
+            </div>
+          </div>
+        </div>
+
         {/* Main Content - Active Courses */}
-        <div className="lg:col-span-2 space-y-8">
+        <div id="learning" className="lg:col-span-2 space-y-8">
           <h2 className="text-2xl font-bold flex items-center gap-2">
             <BookOpen className="w-6 h-6 text-primary" /> My Learning Path
           </h2>
@@ -193,7 +206,7 @@ export default function Dashboard() {
             </button>
           </div>
 
-          <div className="bg-card border rounded-2xl p-6 shadow-sm">
+          <div id="payments" className="bg-card border rounded-2xl p-6 shadow-sm">
             <h3 className="font-bold text-lg mb-4 flex items-center gap-2"><ReceiptText className="w-5 h-5 text-primary" /> Payment History</h3>
             {payments.length === 0 ? (
               <p className="text-sm text-muted-foreground">No payment records yet.</p>
@@ -214,7 +227,7 @@ export default function Dashboard() {
       </div>
 
       <div className="grid lg:grid-cols-3 gap-8 mt-10">
-        <div className="bg-card border rounded-2xl p-6">
+        <div id="profile-settings" className="bg-card border rounded-2xl p-6">
           <h3 className="font-bold text-lg mb-4 flex items-center gap-2"><Settings className="w-5 h-5 text-primary" /> Profile Settings</h3>
           <div className="space-y-3">
             <div><Label>First Name</Label><Input value={profileForm.firstName} onChange={(e) => setProfileForm(f => ({ ...f, firstName: e.target.value }))} /></div>
@@ -227,7 +240,7 @@ export default function Dashboard() {
           </div>
         </div>
 
-        <div className="bg-card border rounded-2xl p-6">
+        <div id="prayer-submit" className="bg-card border rounded-2xl p-6">
           <h3 className="font-bold text-lg mb-4 flex items-center gap-2"><Send className="w-5 h-5 text-primary" /> Submit Prayer Request</h3>
           <div className="space-y-3">
             <div><Label>Title</Label><Input value={prayerForm.title} onChange={(e) => setPrayerForm(f => ({ ...f, title: e.target.value }))} placeholder="Prayer for family" /></div>
@@ -238,7 +251,7 @@ export default function Dashboard() {
           </div>
         </div>
 
-        <div className="bg-card border rounded-2xl p-6">
+        <div id="testimony-submit" className="bg-card border rounded-2xl p-6">
           <h3 className="font-bold text-lg mb-4 flex items-center gap-2"><HeartHandshake className="w-5 h-5 text-primary" /> Share Testimony</h3>
           <div className="space-y-3">
             <div><Label>Title</Label><Input value={testimonyForm.title} onChange={(e) => setTestimonyForm(f => ({ ...f, title: e.target.value }))} placeholder="God made a way" /></div>
