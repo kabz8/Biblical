@@ -29,16 +29,51 @@ export function useAuth() {
   const [isLoading, setIsLoading] = useState(true);
   const { toast } = useToast();
 
+  async function fetchServerUserRole(): Promise<Partial<AppUser> | null> {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token;
+      if (!token) return null;
+      const res = await fetch("/api/auth/user", {
+        headers: { Authorization: `Bearer ${token}` },
+        credentials: "include",
+      });
+      if (!res.ok) return null;
+      const data = await res.json();
+      return {
+        role: data.role ?? null,
+        firstName: data.firstName ?? null,
+        lastName: data.lastName ?? null,
+        email: data.email ?? "",
+      };
+    } catch {
+      return null;
+    }
+  }
+
   useEffect(() => {
     // Initialise from existing session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setUser(session?.user ? toAppUser(session.user) : null);
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
+      if (!session?.user) {
+        setUser(null);
+        setIsLoading(false);
+        return;
+      }
+      const baseUser = toAppUser(session.user);
+      const serverUser = await fetchServerUserRole();
+      setUser({ ...baseUser, ...serverUser });
       setIsLoading(false);
     });
 
     // Keep in sync with Supabase auth state changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ? toAppUser(session.user) : null);
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
+      if (!session?.user) {
+        setUser(null);
+        return;
+      }
+      const baseUser = toAppUser(session.user);
+      const serverUser = await fetchServerUserRole();
+      setUser({ ...baseUser, ...serverUser });
     });
 
     return () => subscription.unsubscribe();
@@ -51,8 +86,10 @@ export function useAuth() {
       throw error;
     }
     const appUser = toAppUser(data.user);
-    setUser(appUser);
-    return appUser;
+    const serverUser = await fetchServerUserRole();
+    const resolvedUser = { ...appUser, ...serverUser };
+    setUser(resolvedUser);
+    return resolvedUser;
   }
 
   async function register({ email, password, firstName, lastName }: {

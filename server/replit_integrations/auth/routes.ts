@@ -1,8 +1,24 @@
 import type { Express } from "express";
 import { isAuthenticated, supabaseAdmin } from "./replitAuth";
 import { authStorage } from "./storage";
+import { db } from "../../db";
+import { profiles } from "@shared/schema";
+import { eq } from "drizzle-orm";
 
 export function registerAuthRoutes(app: Express): void {
+  async function resolveRole(userId: string, jwtRole?: string | null): Promise<string> {
+    try {
+      const [profile] = await db
+        .select({ role: profiles.role })
+        .from(profiles)
+        .where(eq(profiles.userId, userId))
+        .limit(1);
+      return profile?.role || jwtRole || "student";
+    } catch {
+      return jwtRole || "student";
+    }
+  }
+
   /**
    * GET /api/auth/user
    * Verifies the Supabase JWT and returns the current user.
@@ -21,7 +37,8 @@ export function registerAuthRoutes(app: Express): void {
     } catch {
       // Non-fatal — still return the user from the JWT
     }
-    res.json(req.user);
+    const role = await resolveRole(req.user.id, req.user.role);
+    res.json({ ...req.user, role });
   });
 
   /**
@@ -30,14 +47,15 @@ export function registerAuthRoutes(app: Express): void {
    */
   app.post("/api/auth/sync", isAuthenticated as any, async (req: any, res) => {
     try {
-      const user = await authStorage.upsertUser({
+      await authStorage.upsertUser({
         id: req.user.id,
         email: req.user.email,
         firstName: req.user.firstName,
         lastName: req.user.lastName,
         profileImageUrl: req.user.profileImageUrl,
       });
-      res.status(201).json(user);
+      const role = await resolveRole(req.user.id, req.user.role);
+      res.status(201).json({ ...req.user, role });
     } catch (err) {
       res.status(500).json({ message: "Failed to sync user" });
     }
