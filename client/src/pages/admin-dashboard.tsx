@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useQuery, useMutation } from "@tanstack/react-query";
+import { useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { supabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
@@ -877,40 +877,10 @@ export default function AdminDashboard() {
   const [activeTab, setActiveTab] = useState<TabId>("courses");
   const { toast } = useToast();
 
-  const { data: user, isLoading, isError } = useQuery<any>({
-    queryKey: ["/api/auth/user"],
-    retry: false,
-  });
-
   async function handleLogout() {
     await fetch("/api/logout", { method: "POST", credentials: "include" });
     queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
     toast({ title: "Logged out" });
-  }
-
-  if (isLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin" />
-      </div>
-    );
-  }
-
-  if (isError) {
-    return (
-      <div className="min-h-screen flex items-center justify-center p-4">
-        <Card className="w-full max-w-md">
-          <CardHeader>
-            <CardTitle>Admin temporarily unavailable</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-sm text-muted-foreground">
-              The admin endpoint failed to load. Please refresh in a moment.
-            </p>
-          </CardContent>
-        </Card>
-      </div>
-    );
   }
 
   return (
