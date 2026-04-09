@@ -24,17 +24,13 @@ const ADMIN_PASSWORD = "Mango2026!?";
  * isAdmin middleware — verifies Supabase JWT and checks admin email.
  */
 const isAdmin: RequestHandler = async (req: any, res, next) => {
-  if (!supabaseAdmin) return res.status(503).json({ message: "Auth not configured" });
-  const authHeader = req.headers.authorization;
-  if (!authHeader?.startsWith("Bearer ")) {
+  if (!req.user) {
     return res.status(403).json({ message: "Forbidden — admin only" });
   }
-  const token = authHeader.split(" ")[1];
-  const { data, error } = await supabaseAdmin.auth.getUser(token);
-  if (error || !data.user || data.user.email !== ADMIN_EMAIL) {
+  const isAdminUser = req.user.role === "admin" || req.user.email === ADMIN_EMAIL;
+  if (!isAdminUser) {
     return res.status(403).json({ message: "Forbidden — admin only" });
   }
-  req.user = data.user;
   next();
 };
 
@@ -109,7 +105,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     const list = await storage.getSongs(typeof displayOn === "string" ? displayOn : undefined);
     res.json(list);
   });
-  app.post("/api/admin/songs", isAdmin, async (req, res) => {
+  app.post("/api/admin/songs", isAuthenticated as any, isAdmin, async (req, res) => {
     try {
       const data = insertSongSchema.parse(req.body);
       res.status(201).json(await storage.createSong(data));
@@ -118,7 +114,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       res.status(500).json({ message: "Failed to create song" });
     }
   });
-  app.delete("/api/admin/songs/:id", isAdmin, async (req, res) => {
+  app.delete("/api/admin/songs/:id", isAuthenticated as any, isAdmin, async (req, res) => {
     await storage.deleteSong(Number(req.params.id));
     res.sendStatus(204);
   });
@@ -127,7 +123,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
   app.get("/api/quiz-questions", async (_, res) => {
     res.json(await storage.getQuizQuestions());
   });
-  app.post("/api/admin/quiz-questions", isAdmin, async (req, res) => {
+  app.post("/api/admin/quiz-questions", isAuthenticated as any, isAdmin, async (req, res) => {
     try {
       const data = insertQuizQuestionSchema.parse(req.body);
       res.status(201).json(await storage.createQuizQuestion(data));
@@ -136,7 +132,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       res.status(500).json({ message: "Failed to create question" });
     }
   });
-  app.delete("/api/admin/quiz-questions/:id", isAdmin, async (req, res) => {
+  app.delete("/api/admin/quiz-questions/:id", isAuthenticated as any, isAdmin, async (req, res) => {
     await storage.deleteQuizQuestion(Number(req.params.id));
     res.sendStatus(204);
   });
@@ -146,7 +142,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     const { category } = req.query;
     res.json(await storage.getWordSearchWords(typeof category === "string" ? category : undefined));
   });
-  app.post("/api/admin/word-search-words", isAdmin, async (req, res) => {
+  app.post("/api/admin/word-search-words", isAuthenticated as any, isAdmin, async (req, res) => {
     try {
       const data = insertWordSearchWordSchema.parse(req.body);
       res.status(201).json(await storage.createWordSearchWord(data));
@@ -155,7 +151,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       res.status(500).json({ message: "Failed to add word" });
     }
   });
-  app.delete("/api/admin/word-search-words/:id", isAdmin, async (req, res) => {
+  app.delete("/api/admin/word-search-words/:id", isAuthenticated as any, isAdmin, async (req, res) => {
     await storage.deleteWordSearchWord(Number(req.params.id));
     res.sendStatus(204);
   });
@@ -169,7 +165,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     if (!puzzle) return res.status(404).json({ message: "Not found" });
     res.json(puzzle);
   });
-  app.post("/api/admin/crosswords", isAdmin, async (req, res) => {
+  app.post("/api/admin/crosswords", isAuthenticated as any, isAdmin, async (req, res) => {
     try {
       const data = insertCrosswordPuzzleSchema.parse(req.body);
       res.status(201).json(await storage.createCrosswordPuzzle(data));
@@ -178,7 +174,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       res.status(500).json({ message: "Failed to create crossword" });
     }
   });
-  app.delete("/api/admin/crosswords/:id", isAdmin, async (req, res) => {
+  app.delete("/api/admin/crosswords/:id", isAuthenticated as any, isAdmin, async (req, res) => {
     await storage.deleteCrosswordPuzzle(Number(req.params.id));
     res.sendStatus(204);
   });
@@ -187,7 +183,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
   app.get("/api/testimonies", async (_, res) => {
     res.json(await storage.getTestimonies());
   });
-  app.post("/api/admin/testimonies", isAdmin, async (req, res) => {
+  app.post("/api/admin/testimonies", isAuthenticated as any, isAdmin, async (req, res) => {
     try {
       const data = insertTestimonySchema.parse(req.body);
       res.status(201).json(await storage.createTestimony(data));
@@ -196,7 +192,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       res.status(500).json({ message: "Failed to create testimony" });
     }
   });
-  app.delete("/api/admin/testimonies/:id", isAdmin, async (req, res) => {
+  app.delete("/api/admin/testimonies/:id", isAuthenticated as any, isAdmin, async (req, res) => {
     await storage.deleteTestimony(Number(req.params.id));
     res.sendStatus(204);
   });
@@ -214,7 +210,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
               email: ADMIN_EMAIL,
               password: ADMIN_PASSWORD,
               email_confirm: true,
-              user_metadata: { first_name: "Admin", last_name: "BFC" },
+              user_metadata: { first_name: "Admin", last_name: "BFC", role: "admin" },
             });
             if (error) {
               console.warn("[seed] Could not create admin in Supabase Auth:", error.message);

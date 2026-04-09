@@ -48,6 +48,7 @@ export const isAuthenticated: RequestHandler = async (req: any, res, next) => {
     firstName: meta.first_name || meta.firstName || null,
     lastName: meta.last_name || meta.lastName || null,
     profileImageUrl: meta.avatar_url || null,
+    role: meta.role || "student",
   };
   next();
 };

@@ -576,7 +576,7 @@ export default function AdminDashboard() {
     toast({ title: "Logged out" });
   }
 
-  const isAdmin = user?.email === "admin@biblicalfinancialcourses.com";
+  const isAdmin = user?.role === "admin" || user?.email === "admin@biblicalfinancialcourses.com";
 
   if (isLoading) {
     return (

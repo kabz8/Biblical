@@ -9,6 +9,7 @@ export type AppUser = {
   firstName: string | null;
   lastName: string | null;
   profileImageUrl?: string | null;
+  role?: string | null;
 };
 
 function toAppUser(u: SupabaseUser): AppUser {
@@ -19,6 +20,7 @@ function toAppUser(u: SupabaseUser): AppUser {
     firstName: meta.first_name || meta.firstName || null,
     lastName: meta.last_name || meta.lastName || null,
     profileImageUrl: meta.avatar_url || null,
+    role: meta.role || null,
   };
 }
 
@@ -59,7 +61,7 @@ export function useAuth() {
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
-      options: { data: { first_name: firstName, last_name: lastName } },
+      options: { data: { first_name: firstName, last_name: lastName, role: "student" } },
     });
     if (error) {
       toast({ title: "Registration failed", description: error.message, variant: "destructive" });
