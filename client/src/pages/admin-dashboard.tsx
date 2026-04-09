@@ -10,7 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { Trash2, Plus, LogIn, Music, Brain, Search, Grid3X3, MessageSquare, ChevronRight, Eye, EyeOff, GraduationCap } from "lucide-react";
+import { Trash2, Plus, LogIn, Music, Brain, Search, Grid3X3, MessageSquare, ChevronRight, Eye, EyeOff, GraduationCap, Users } from "lucide-react";
 
 // ── Crossword auto-layout algorithm ──────────────────────────────────────
 type CWWord = { word: string; clue: string; row: number; col: number; dir: "across" | "down"; num: number };
@@ -171,7 +171,7 @@ function SongsTab() {
   const create = useMutation({
     mutationFn: () => apiRequest("POST", "/api/admin/songs", form),
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["/api/songs"] }); setForm({ title: "", artist: "", category: "Worship", songKey: "", tempo: "", lyrics: "", chords: "", displayOn: "sing-along" }); toast({ title: "Song added!" }); },
-    onError: () => toast({ title: "Failed to add song", variant: "destructive" }),
+    onError: (err: any) => toast({ title: "Failed to add song", description: err?.message, variant: "destructive" }),
   });
 
   const del = useMutation({
@@ -249,7 +249,7 @@ function QuizTab() {
   const create = useMutation({
     mutationFn: () => apiRequest("POST", "/api/admin/quiz-questions", form),
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["/api/quiz-questions"] }); setForm({ scripture: "", question: "", optionA: "", optionB: "", optionC: "", optionD: "", correctOption: 0 }); toast({ title: "Question added!" }); },
-    onError: () => toast({ title: "Failed", variant: "destructive" }),
+    onError: (err: any) => toast({ title: "Failed", description: err?.message, variant: "destructive" }),
   });
 
   const del = useMutation({
@@ -325,7 +325,7 @@ function WordSearchTab() {
   const create = useMutation({
     mutationFn: () => apiRequest("POST", "/api/admin/word-search-words", { ...form, word: form.word.toUpperCase().trim() }),
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["/api/word-search-words"] }); setForm(f => ({ ...f, word: "" })); toast({ title: "Word added!" }); },
-    onError: () => toast({ title: "Failed", variant: "destructive" }),
+    onError: (err: any) => toast({ title: "Failed", description: err?.message, variant: "destructive" }),
   });
 
   const del = useMutation({
@@ -397,7 +397,7 @@ function CrosswordTab() {
       return apiRequest("POST", "/api/admin/crosswords", { title, data: JSON.stringify(preview) });
     },
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["/api/crosswords"] }); setTitle(""); setPairsText(""); setPreview(null); toast({ title: "Crossword saved!" }); },
-    onError: () => toast({ title: "Failed", variant: "destructive" }),
+    onError: (err: any) => toast({ title: "Failed", description: err?.message, variant: "destructive" }),
   });
 
   const del = useMutation({
@@ -484,7 +484,7 @@ function TestimoniesTab() {
   const create = useMutation({
     mutationFn: () => apiRequest("POST", "/api/admin/testimonies", form),
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["/api/admin/testimonies"] }); setForm({ name: "", location: "", category: "Debt Freedom", title: "", story: "" }); toast({ title: "Testimony added!" }); },
-    onError: () => toast({ title: "Failed", variant: "destructive" }),
+    onError: (err: any) => toast({ title: "Failed", description: err?.message, variant: "destructive" }),
   });
 
   const approve = useMutation({
@@ -570,7 +570,7 @@ function PrayersTab() {
       setForm({ name: "", email: "", title: "", content: "", status: "open", isPublic: true });
       toast({ title: "Prayer added" });
     },
-    onError: () => toast({ title: "Failed to add prayer", variant: "destructive" }),
+    onError: (err: any) => toast({ title: "Failed to add prayer", description: err?.message, variant: "destructive" }),
   });
 
   const del = useMutation({
@@ -646,6 +646,120 @@ function PrayersTab() {
                       </Button>
                     )}
                     <DeleteBtn onDelete={() => del.mutate(p.id)} />
+                  </div>
+                ))}
+              </div>}
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+function StudentsTasksTab() {
+  const { toast } = useToast();
+  const { data: students = [], isLoading: loadingStudents } = useQuery<any[]>({ queryKey: ["/api/admin/students"] });
+  const { data: courses = [] } = useQuery<any[]>({ queryKey: ["/api/courses"] });
+  const { data: tasks = [], isLoading: loadingTasks } = useQuery<any[]>({ queryKey: ["/api/admin/tasks"] });
+  const [form, setForm] = useState({
+    studentUserId: "",
+    courseId: "",
+    title: "",
+    description: "",
+    dueAt: "",
+  });
+
+  const assignTask = useMutation({
+    mutationFn: () =>
+      apiRequest("POST", "/api/admin/tasks", {
+        studentUserId: form.studentUserId,
+        courseId: form.courseId ? Number(form.courseId) : null,
+        title: form.title,
+        description: form.description || null,
+        dueAt: form.dueAt || null,
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/tasks"] });
+      setForm({ studentUserId: "", courseId: "", title: "", description: "", dueAt: "" });
+      toast({ title: "Task assigned" });
+    },
+    onError: (err: any) => toast({ title: "Failed to assign task", description: err?.message, variant: "destructive" }),
+  });
+
+  return (
+    <div className="space-y-6">
+      <Card>
+        <CardHeader><CardTitle className="text-lg">Assign Task to Student</CardTitle></CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid sm:grid-cols-2 gap-4">
+            <div>
+              <Label>Student *</Label>
+              <Select value={form.studentUserId} onValueChange={v => setForm(f => ({ ...f, studentUserId: v }))}>
+                <SelectTrigger className="mt-1"><SelectValue placeholder="Select student" /></SelectTrigger>
+                <SelectContent>
+                  {students.map((s: any) => (
+                    <SelectItem key={s.userId} value={s.userId}>
+                      {(s.firstName || "") + " " + (s.lastName || "")} ({s.email})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label>Course (optional)</Label>
+              <Select value={form.courseId} onValueChange={v => setForm(f => ({ ...f, courseId: v }))}>
+                <SelectTrigger className="mt-1"><SelectValue placeholder="Select course" /></SelectTrigger>
+                <SelectContent>
+                  {courses.map((c: any) => <SelectItem key={c.id} value={String(c.id)}>{c.title}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div><Label>Task Title *</Label><Input className="mt-1" value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))} placeholder="Complete Module 1 summary" /></div>
+            <div><Label>Due Date</Label><Input className="mt-1" type="datetime-local" value={form.dueAt} onChange={e => setForm(f => ({ ...f, dueAt: e.target.value }))} /></div>
+          </div>
+          <div><Label>Description</Label><Textarea className="mt-1 min-h-[100px]" value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} placeholder="Task details for the student..." /></div>
+          <Button onClick={() => assignTask.mutate()} disabled={!form.studentUserId || !form.title || assignTask.isPending} className="rounded-full font-bold">
+            <Plus className="w-4 h-4 mr-2" />{assignTask.isPending ? "Assigning..." : "Assign Task"}
+          </Button>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader><CardTitle className="text-lg">Enrolled Students ({students.length})</CardTitle></CardHeader>
+        <CardContent>
+          {loadingStudents ? <p className="text-sm text-muted-foreground">Loading…</p> :
+            students.length === 0 ? <p className="text-sm text-muted-foreground">No enrolled students yet.</p> :
+              <div className="space-y-2">
+                {students.map((s: any) => (
+                  <div key={s.userId} className="p-3 rounded-xl border border-border/50 bg-card">
+                    <p className="font-semibold">{((s.firstName || "") + " " + (s.lastName || "")).trim() || s.email}</p>
+                    <p className="text-xs text-muted-foreground">{s.email}</p>
+                    <p className="text-xs mt-1 text-muted-foreground">
+                      Courses: {(s.enrollments || []).map((e: any) => e.courseTitle).filter(Boolean).join(", ") || "None"}
+                    </p>
+                  </div>
+                ))}
+              </div>}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader><CardTitle className="text-lg">Assigned Tasks ({tasks.length})</CardTitle></CardHeader>
+        <CardContent>
+          {loadingTasks ? <p className="text-sm text-muted-foreground">Loading…</p> :
+            tasks.length === 0 ? <p className="text-sm text-muted-foreground">No tasks assigned yet.</p> :
+              <div className="space-y-2">
+                {tasks.map((t: any) => (
+                  <div key={t.id} className="p-3 rounded-xl border border-border/50 bg-card">
+                    <div className="flex items-center gap-2">
+                      <p className="font-semibold">{t.title}</p>
+                      <Badge variant="outline">{t.status}</Badge>
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Student: {((t.studentFirstName || "") + " " + (t.studentLastName || "")).trim() || t.studentEmail}
+                      {t.courseTitle ? ` · Course: ${t.courseTitle}` : ""}
+                      {t.dueAt ? ` · Due: ${new Date(t.dueAt).toLocaleString()}` : ""}
+                    </p>
+                    {t.description ? <p className="text-sm text-muted-foreground mt-1">{t.description}</p> : null}
                   </div>
                 ))}
               </div>}
@@ -869,6 +983,7 @@ const TABS = [
   { id: "crossword", label: "Crossword", icon: Grid3X3 },
   { id: "testimonies", label: "Testimonies", icon: MessageSquare },
   { id: "prayers", label: "Prayers", icon: MessageSquare },
+  { id: "students", label: "Students & Tasks", icon: Users },
 ] as const;
 
 type TabId = typeof TABS[number]["id"];
@@ -922,6 +1037,7 @@ export default function AdminDashboard() {
         {activeTab === "crossword" && <CrosswordTab />}
         {activeTab === "testimonies" && <TestimoniesTab />}
         {activeTab === "prayers" && <PrayersTab />}
+        {activeTab === "students" && <StudentsTasksTab />}
       </div>
     </div>
   );

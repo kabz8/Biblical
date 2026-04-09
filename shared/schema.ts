@@ -166,6 +166,19 @@ export const prayers = pgTable("prayers", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
+export const tutorTasks = pgTable("tutor_tasks", {
+  id: serial("id").primaryKey(),
+  studentUserId: text("student_user_id").notNull().references(() => users.id),
+  courseId: integer("course_id").references(() => courses.id),
+  title: text("title").notNull(),
+  description: text("description"),
+  status: text("status").notNull().default("pending"), // pending | completed
+  dueAt: timestamp("due_at"),
+  createdByUserId: text("created_by_user_id").notNull().references(() => users.id),
+  createdAt: timestamp("created_at").defaultNow(),
+  completedAt: timestamp("completed_at"),
+});
+
 // ── Zod Schemas ───────────────────────────────────────────────────────────
 
 export const insertActivitySubmissionSchema = createInsertSchema(activitySubmissions).omit({ id: true, submittedAt: true });
@@ -175,6 +188,7 @@ export const insertWordSearchWordSchema = createInsertSchema(wordSearchWords).om
 export const insertCrosswordPuzzleSchema = createInsertSchema(crosswordPuzzles).omit({ id: true, createdAt: true });
 export const insertTestimonySchema = createInsertSchema(testimonies).omit({ id: true, createdAt: true });
 export const insertPrayerSchema = createInsertSchema(prayers).omit({ id: true, createdAt: true });
+export const insertTutorTaskSchema = createInsertSchema(tutorTasks).omit({ id: true, createdAt: true, completedAt: true });
 
 // ── Types ─────────────────────────────────────────────────────────────────
 
@@ -194,6 +208,8 @@ export type Prayer = typeof prayers.$inferSelect;
 export type InsertPrayer = z.infer<typeof insertPrayerSchema>;
 export type PaymentOrder = typeof paymentOrders.$inferSelect;
 export type PaymentTransaction = typeof paymentTransactions.$inferSelect;
+export type TutorTask = typeof tutorTasks.$inferSelect;
+export type InsertTutorTask = z.infer<typeof insertTutorTaskSchema>;
 
 export const coursesRelations = relations(courses, ({ one, many }) => ({
   track: one(tracks, { fields: [courses.trackId], references: [tracks.id] }),

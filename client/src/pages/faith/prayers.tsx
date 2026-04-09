@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -40,6 +41,7 @@ const stats = [
 
 export default function PrayersPage() {
   const { joinSession, startActivity, joinCommunity } = useActionCTA();
+  const { data: publicPrayers = [], isLoading: loadingPrayers } = useQuery<any[]>({ queryKey: ["/api/prayers"] });
 
   return (
     <div className="min-h-screen bg-background">
@@ -130,6 +132,30 @@ export default function PrayersPage() {
             ))}
           </div>
         </div>
+      </section>
+
+      <section className="container mx-auto px-4 py-16">
+        <div className="text-center mb-10">
+          <h2 className="text-3xl font-bold mb-2">Community Prayer Requests</h2>
+          <p className="text-muted-foreground">Approved prayer requests submitted by members</p>
+        </div>
+        {loadingPrayers ? (
+          <div className="text-center text-muted-foreground">Loading prayers...</div>
+        ) : publicPrayers.length === 0 ? (
+          <div className="text-center text-muted-foreground">No public prayer requests yet.</div>
+        ) : (
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {publicPrayers.map((p: any) => (
+              <Card key={p.id} className="border border-border/50 shadow-sm">
+                <CardContent className="p-5">
+                  <h3 className="font-bold mb-1">{p.title}</h3>
+                  <p className="text-xs text-muted-foreground mb-2">{p.name}{p.status ? ` · ${p.status}` : ""}</p>
+                  <p className="text-sm text-muted-foreground leading-relaxed">{p.content}</p>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        )}
       </section>
 
       {/* Meet Our Intercessors */}

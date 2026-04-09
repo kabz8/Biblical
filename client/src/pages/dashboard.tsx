@@ -21,6 +21,7 @@ export default function Dashboard() {
   const { data: enrollments, isLoading: enrollmentsLoading } = useEnrollments();
   const { data: progressList } = useProgress();
   const { data: payments = [] } = useQuery<any[]>({ queryKey: ["/api/me/payments"] });
+  const { data: tasks = [] } = useQuery<any[]>({ queryKey: ["/api/me/tasks"] });
   const { data: profile } = useQuery<any>({ queryKey: ["/api/me/profile"] });
   const [profileForm, setProfileForm] = useState({ firstName: "", lastName: "", locale: "en", theme: "system" });
   const [prayerForm, setPrayerForm] = useState({ title: "", content: "" });
@@ -91,6 +92,21 @@ export default function Dashboard() {
     onError: (e: any) => toast({ title: "Testimony submission failed", description: e.message, variant: "destructive" }),
   });
 
+  const completeTask = useMutation({
+    mutationFn: (taskId: number) =>
+      fetch(`/api/me/tasks/${taskId}/complete`, {
+        method: "PATCH",
+        credentials: "include",
+      }).then(async (r) => {
+        if (!r.ok) throw new Error((await r.text()) || "Failed to complete task");
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/me/tasks"] });
+      toast({ title: "Task marked complete" });
+    },
+    onError: (e: any) => toast({ title: "Task update failed", description: e.message, variant: "destructive" }),
+  });
+
   useEffect(() => {
     if (!authLoading && !user) {
       setLocation("/auth");
@@ -122,6 +138,7 @@ export default function Dashboard() {
               <a href="#profile-settings" className="block rounded-lg px-3 py-2 text-sm hover:bg-muted">Profile Settings</a>
               <a href="#prayer-submit" className="block rounded-lg px-3 py-2 text-sm hover:bg-muted">Submit Prayer Request</a>
               <a href="#testimony-submit" className="block rounded-lg px-3 py-2 text-sm hover:bg-muted">Share Testimony</a>
+              <a href="#my-tasks" className="block rounded-lg px-3 py-2 text-sm hover:bg-muted">My Tasks</a>
             </div>
           </div>
         </div>
@@ -262,6 +279,34 @@ export default function Dashboard() {
               {submitTestimony.isPending ? "Submitting..." : "Submit Testimony"}
             </Button>
           </div>
+        </div>
+
+        <div id="my-tasks" className="bg-card border rounded-2xl p-6">
+          <h3 className="font-bold text-lg mb-4">My Assigned Tasks</h3>
+          {tasks.length === 0 ? (
+            <p className="text-sm text-muted-foreground">No tasks assigned yet.</p>
+          ) : (
+            <div className="space-y-3">
+              {tasks.map((t: any) => (
+                <div key={t.id} className="rounded-xl border border-border/50 p-3">
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="font-semibold">{t.title}</p>
+                    <span className="text-xs px-2 py-0.5 rounded-full border">{t.status}</span>
+                  </div>
+                  {t.description ? <p className="text-sm text-muted-foreground mt-1">{t.description}</p> : null}
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {t.courseTitle ? `Course: ${t.courseTitle}` : "General task"}
+                    {t.dueAt ? ` · Due: ${new Date(t.dueAt).toLocaleString()}` : ""}
+                  </p>
+                  {t.status !== "completed" && (
+                    <Button size="sm" className="mt-3 rounded-full" onClick={() => completeTask.mutate(t.id)} disabled={completeTask.isPending}>
+                      Mark Complete
+                    </Button>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       </div>
     </div>

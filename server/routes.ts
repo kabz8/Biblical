@@ -8,7 +8,7 @@ import { isAuthenticated, supabaseAdmin } from "./replit_integrations/auth/repli
 import { authStorage } from "./replit_integrations/auth/storage";
 import { db } from "./db";
 import { users as authUsers } from "@shared/models/auth";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 
 import {
   insertActivitySubmissionSchema,
@@ -20,9 +20,12 @@ import {
   insertCrosswordPuzzleSchema,
   insertTestimonySchema,
   insertPrayerSchema,
+  insertTutorTaskSchema,
   profiles,
   paymentOrders,
   courses,
+  enrollments,
+  tutorTasks,
 } from "@shared/schema";
 
 const ADMIN_EMAIL = process.env.ADMIN_EMAIL?.trim().toLowerCase();
@@ -263,9 +266,111 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     res.status(201).json(testimony);
   });
 
+  app.get("/api/me/tasks", isAuthenticated as any, async (req: any, res) => {
+    const rows = await db
+      .select({
+        id: tutorTasks.id,
+        title: tutorTasks.title,
+        description: tutorTasks.description,
+        status: tutorTasks.status,
+        dueAt: tutorTasks.dueAt,
+        createdAt: tutorTasks.createdAt,
+        completedAt: tutorTasks.completedAt,
+        courseId: tutorTasks.courseId,
+        courseTitle: courses.title,
+      })
+      .from(tutorTasks)
+      .leftJoin(courses, eq(tutorTasks.courseId, courses.id))
+      .where(eq(tutorTasks.studentUserId, req.user.id));
+    res.json(rows);
+  });
+
+  app.patch("/api/me/tasks/:id/complete", isAuthenticated as any, async (req: any, res) => {
+    const taskId = Number(req.params.id);
+    if (!Number.isFinite(taskId)) return res.status(400).json({ message: "Invalid task id" });
+    await db
+      .update(tutorTasks)
+      .set({ status: "completed", completedAt: new Date() })
+      .where(and(eq(tutorTasks.id, taskId), eq(tutorTasks.studentUserId, req.user.id)));
+    res.sendStatus(204);
+  });
+
   // ── Admin Stats ────────────────────────────────────────────────────────
   app.get(api.admin.stats.path, isAuthenticated as any, async (_, res) => {
     res.json({ totalUsers: 0, totalRevenue: 0, activeEnrollments: 0 });
+  });
+
+  app.get("/api/admin/students", isAuthenticated as any, isAdmin, async (_, res) => {
+    const rows = await db
+      .select({
+        userId: enrollments.userId,
+        email: authUsers.email,
+        firstName: authUsers.firstName,
+        lastName: authUsers.lastName,
+        courseId: enrollments.courseId,
+        courseTitle: courses.title,
+        enrolledAt: enrollments.enrolledAt,
+      })
+      .from(enrollments)
+      .leftJoin(authUsers, eq(enrollments.userId, authUsers.id))
+      .leftJoin(courses, eq(enrollments.courseId, courses.id));
+
+    const studentsMap = new Map<string, any>();
+    for (const r of rows) {
+      if (!studentsMap.has(r.userId)) {
+        studentsMap.set(r.userId, {
+          userId: r.userId,
+          email: r.email,
+          firstName: r.firstName,
+          lastName: r.lastName,
+          enrollments: [],
+        });
+      }
+      studentsMap.get(r.userId).enrollments.push({
+        courseId: r.courseId,
+        courseTitle: r.courseTitle,
+        enrolledAt: r.enrolledAt,
+      });
+    }
+    res.json([...studentsMap.values()]);
+  });
+
+  app.get("/api/admin/tasks", isAuthenticated as any, isAdmin, async (_, res) => {
+    const rows = await db
+      .select({
+        id: tutorTasks.id,
+        title: tutorTasks.title,
+        description: tutorTasks.description,
+        status: tutorTasks.status,
+        dueAt: tutorTasks.dueAt,
+        createdAt: tutorTasks.createdAt,
+        completedAt: tutorTasks.completedAt,
+        studentUserId: tutorTasks.studentUserId,
+        studentEmail: authUsers.email,
+        studentFirstName: authUsers.firstName,
+        studentLastName: authUsers.lastName,
+        courseId: tutorTasks.courseId,
+        courseTitle: courses.title,
+      })
+      .from(tutorTasks)
+      .leftJoin(authUsers, eq(tutorTasks.studentUserId, authUsers.id))
+      .leftJoin(courses, eq(tutorTasks.courseId, courses.id));
+    res.json(rows);
+  });
+
+  app.post("/api/admin/tasks", isAuthenticated as any, isAdmin, async (req: any, res) => {
+    try {
+      const parsed = insertTutorTaskSchema.parse({
+        ...req.body,
+        createdByUserId: req.user.id,
+        dueAt: req.body?.dueAt ? new Date(req.body.dueAt) : null,
+      });
+      const [task] = await db.insert(tutorTasks).values(parsed).returning();
+      res.status(201).json(task);
+    } catch (err) {
+      if (err instanceof z.ZodError) return res.status(400).json({ message: err.errors[0].message });
+      res.status(500).json({ message: "Failed to create task" });
+    }
   });
 
   // ── Songs (Public GET, Admin POST/DELETE) ──────────────────────────────
