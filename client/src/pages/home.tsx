@@ -5,10 +5,12 @@ import { Button } from "@/components/ui/button";
 import { ArrowRight, Sparkles } from "lucide-react";
 import { Link } from "wouter";
 import heroImg from "@assets/7323_1752152530250-30yzAfBJ_1772459664361.jpg";
-import { FEATURED_COURSES } from "@/data/courses";
+import { useQuery } from "@tanstack/react-query";
 
 export default function Home() {
-  const { t } = useTranslation();
+  useTranslation();
+  const { data: courses = [] } = useQuery<any[]>({ queryKey: ["/api/courses"] });
+  const featuredCourses = courses.filter((c: any) => c.isPublished !== false).slice(0, 3);
 
   return (
     <div className="relative overflow-x-hidden">
@@ -82,16 +84,20 @@ export default function Home() {
             </div>
             <Link href="/courses">
               <Button variant="link" className="text-primary font-bold text-lg p-0 h-auto whitespace-nowrap">
-                View all 6 courses <ArrowRight className="ml-2 w-5 h-5" />
+                View all courses <ArrowRight className="ml-2 w-5 h-5" />
               </Button>
             </Link>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {FEATURED_COURSES.map(course => (
-              <CourseCard key={course.id} course={course} />
-            ))}
-          </div>
+          {featuredCourses.length > 0 ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+              {featuredCourses.map((course: any) => <CourseCard key={course.id} course={course} />)}
+            </div>
+          ) : (
+            <div className="text-center py-10 text-muted-foreground">
+              No courses published yet. Add courses from the admin dashboard.
+            </div>
+          )}
 
           <div className="text-center mt-12">
             <Link href="/courses">

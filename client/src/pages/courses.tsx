@@ -1,37 +1,35 @@
 import { CourseCard } from "@/components/course-card";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { BookOpen, Filter } from "lucide-react";
 import { useState } from "react";
-import { ALL_COURSES } from "@/data/courses";
+import { useQuery } from "@tanstack/react-query";
 
 const LEVELS = ["all", "beginner", "intermediate", "advanced"] as const;
 type Level = typeof LEVELS[number];
 
-const TRACKS = [
-  { id: "all", label: "All Tracks" },
-  { id: 1, label: "Foundations" },
-  { id: 2, label: "Investing" },
-  { id: 3, label: "Debt Freedom" },
-  { id: 4, label: "Generosity" },
-];
-
-const STATS = [
-  { value: "6", label: "Courses" },
-  { value: "32+", label: "Hours of Content" },
-  { value: "12,000+", label: "Students" },
-  { value: "2", label: "Free Courses" },
-];
-
 export default function CoursesPage() {
   const [level, setLevel] = useState<Level>("all");
   const [track, setTrack] = useState<number | "all">("all");
+  const { data: courses = [] } = useQuery<any[]>({ queryKey: ["/api/courses"] });
+  const { data: tracks = [] } = useQuery<any[]>({ queryKey: ["/api/tracks"] });
 
-  const filtered = ALL_COURSES.filter(c => {
+  const filtered = courses.filter((c: any) => {
+    if (c.isPublished === false) return false;
     const levelMatch = level === "all" || c.level === level;
     const trackMatch = track === "all" || c.trackId === track;
     return levelMatch && trackMatch;
   });
+
+  const totalHours = courses.reduce((sum: number, c: any) => {
+    const match = (c.duration || "").match(/\d+/);
+    return sum + (match ? Number(match[0]) : 0);
+  }, 0);
+  const freeCourses = courses.filter((c: any) => Number(c.price || 0) === 0).length;
+  const stats = [
+    { value: String(courses.length), label: "Courses" },
+    { value: `${totalHours}+`, label: "Hours of Content" },
+    { value: String(freeCourses), label: "Free Courses" },
+  ];
 
   return (
     <div className="min-h-screen bg-background">
@@ -50,7 +48,7 @@ export default function CoursesPage() {
       <div className="border-b bg-muted/30 py-6">
         <div className="container mx-auto px-4">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-6 text-center">
-            {STATS.map(s => (
+            {stats.map(s => (
               <div key={s.label}>
                 <div className="text-2xl font-bold text-primary">{s.value}</div>
                 <div className="text-xs text-muted-foreground">{s.label}</div>
@@ -85,7 +83,7 @@ export default function CoursesPage() {
             <div className="w-px bg-border hidden sm:block" />
 
             <div className="flex flex-wrap gap-2">
-              {TRACKS.map(t => (
+              {[{ id: "all", title: "All Tracks" }, ...tracks].map((t: any) => (
                 <Button
                   key={String(t.id)}
                   size="sm"
@@ -93,7 +91,7 @@ export default function CoursesPage() {
                   className="rounded-full font-bold"
                   onClick={() => setTrack(t.id as number | "all")}
                 >
-                  {t.label}
+                  {t.title}
                 </Button>
               ))}
             </div>
@@ -107,7 +105,7 @@ export default function CoursesPage() {
         {/* Course Grid */}
         {filtered.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {filtered.map(course => (
+            {filtered.map((course: any) => (
               <CourseCard key={course.id} course={course} />
             ))}
           </div>

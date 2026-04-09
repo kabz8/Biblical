@@ -1,15 +1,28 @@
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "wouter";
+import { useLocation } from "wouter";
 import { useAuth } from "@/hooks/use-auth";
 import { useEnrollments } from "@/hooks/use-enrollments";
 import { useProgress } from "@/hooks/use-progress";
 import { Progress } from "@/components/ui/progress";
 import { PlayCircle, BookOpen, CheckCircle } from "lucide-react";
+import { useEffect } from "react";
 
 export default function Dashboard() {
-  const { user } = useAuth();
+  const { user, isLoading: authLoading } = useAuth();
+  const [, setLocation] = useLocation();
   const { data: enrollments, isLoading: enrollmentsLoading } = useEnrollments();
   const { data: progressList } = useProgress();
+
+  useEffect(() => {
+    if (!authLoading && !user) {
+      setLocation("/auth");
+    }
+  }, [authLoading, user, setLocation]);
+
+  if (authLoading || !user) {
+    return <div className="p-12 text-center">Checking session...</div>;
+  }
 
   if (enrollmentsLoading) {
     return <div className="p-12 text-center">Loading dashboard...</div>;

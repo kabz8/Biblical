@@ -10,7 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { Trash2, Plus, LogIn, Music, Brain, Search, Grid3X3, MessageSquare, ChevronRight, Eye, EyeOff } from "lucide-react";
+import { Trash2, Plus, LogIn, Music, Brain, Search, Grid3X3, MessageSquare, ChevronRight, Eye, EyeOff, GraduationCap } from "lucide-react";
 
 // ── Crossword auto-layout algorithm ──────────────────────────────────────
 type CWWord = { word: string; clue: string; row: number; col: number; dir: "across" | "down"; num: number };
@@ -93,7 +93,7 @@ function buildCrossword(pairs: { word: string; clue: string }[]): CWData {
 
 // ── Login Form ────────────────────────────────────────────────────────────
 function LoginForm({ onLogin }: { onLogin: () => void }) {
-  const [email, setEmail] = useState("admin@biblicalfinancialcourses.com");
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPw, setShowPw] = useState(false);
   const [error, setError] = useState("");
@@ -107,11 +107,6 @@ function LoginForm({ onLogin }: { onLogin: () => void }) {
       const { data, error } = await supabase.auth.signInWithPassword({ email, password });
       if (error || !data.user) {
         setError("Invalid email or password");
-        return;
-      }
-      if (data.user.email !== "admin@biblicalfinancialcourses.com") {
-        setError("You do not have admin access.");
-        await supabase.auth.signOut();
         return;
       }
       toast({ title: "Welcome, Admin!" });
@@ -548,8 +543,169 @@ function TestimoniesTab() {
   );
 }
 
+// ── Tracks & Courses Tab ───────────────────────────────────────────────────
+function CoursesTab() {
+  const { toast } = useToast();
+  const { data: tracks = [] } = useQuery<any[]>({ queryKey: ["/api/tracks"] });
+  const { data: courses = [] } = useQuery<any[]>({ queryKey: ["/api/courses"] });
+
+  const [trackForm, setTrackForm] = useState({
+    slug: "",
+    title: "",
+    description: "",
+    imageUrl: "",
+    order: 0,
+  });
+  const [courseForm, setCourseForm] = useState({
+    trackId: "",
+    slug: "",
+    title: "",
+    description: "",
+    price: 0,
+    level: "beginner",
+    duration: "",
+    imageUrl: "",
+    isPublished: true,
+  });
+
+  const createTrack = useMutation({
+    mutationFn: () =>
+      apiRequest("POST", "/api/admin/tracks", {
+        ...trackForm,
+        order: Number(trackForm.order) || 0,
+        imageUrl: trackForm.imageUrl || null,
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/tracks"] });
+      setTrackForm({ slug: "", title: "", description: "", imageUrl: "", order: 0 });
+      toast({ title: "Track created" });
+    },
+    onError: () => toast({ title: "Failed to create track", variant: "destructive" }),
+  });
+
+  const createCourse = useMutation({
+    mutationFn: () =>
+      apiRequest("POST", "/api/admin/courses", {
+        ...courseForm,
+        trackId: courseForm.trackId ? Number(courseForm.trackId) : null,
+        price: Number(courseForm.price) || 0,
+        imageUrl: courseForm.imageUrl || null,
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/courses"] });
+      setCourseForm({
+        trackId: "",
+        slug: "",
+        title: "",
+        description: "",
+        price: 0,
+        level: "beginner",
+        duration: "",
+        imageUrl: "",
+        isPublished: true,
+      });
+      toast({ title: "Course created" });
+    },
+    onError: () => toast({ title: "Failed to create course", variant: "destructive" }),
+  });
+
+  return (
+    <div className="space-y-6">
+      <Card>
+        <CardHeader><CardTitle className="text-lg">Create Track</CardTitle></CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid sm:grid-cols-2 gap-4">
+            <div><Label>Slug *</Label><Input className="mt-1" value={trackForm.slug} onChange={e => setTrackForm(f => ({ ...f, slug: e.target.value }))} placeholder="foundations" /></div>
+            <div><Label>Title *</Label><Input className="mt-1" value={trackForm.title} onChange={e => setTrackForm(f => ({ ...f, title: e.target.value }))} placeholder="Foundations of Stewardship" /></div>
+            <div><Label>Order</Label><Input className="mt-1" type="number" value={trackForm.order} onChange={e => setTrackForm(f => ({ ...f, order: Number(e.target.value) }))} /></div>
+            <div><Label>Image URL</Label><Input className="mt-1" value={trackForm.imageUrl} onChange={e => setTrackForm(f => ({ ...f, imageUrl: e.target.value }))} placeholder="https://..." /></div>
+          </div>
+          <div><Label>Description *</Label><Textarea className="mt-1" value={trackForm.description} onChange={e => setTrackForm(f => ({ ...f, description: e.target.value }))} placeholder="Track description..." /></div>
+          <Button onClick={() => createTrack.mutate()} disabled={!trackForm.slug || !trackForm.title || !trackForm.description || createTrack.isPending} className="rounded-full font-bold">
+            <Plus className="w-4 h-4 mr-2" />{createTrack.isPending ? "Creating..." : "Create Track"}
+          </Button>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader><CardTitle className="text-lg">Create Course</CardTitle></CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid sm:grid-cols-2 gap-4">
+            <div>
+              <Label>Track</Label>
+              <Select value={courseForm.trackId} onValueChange={v => setCourseForm(f => ({ ...f, trackId: v }))}>
+                <SelectTrigger className="mt-1"><SelectValue placeholder="Select a track" /></SelectTrigger>
+                <SelectContent>
+                  {tracks.map((t: any) => <SelectItem key={t.id} value={String(t.id)}>{t.title}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div><Label>Slug *</Label><Input className="mt-1" value={courseForm.slug} onChange={e => setCourseForm(f => ({ ...f, slug: e.target.value }))} placeholder="stewardship-101" /></div>
+            <div><Label>Title *</Label><Input className="mt-1" value={courseForm.title} onChange={e => setCourseForm(f => ({ ...f, title: e.target.value }))} placeholder="Stewardship 101" /></div>
+            <div><Label>Price (cents)</Label><Input className="mt-1" type="number" value={courseForm.price} onChange={e => setCourseForm(f => ({ ...f, price: Number(e.target.value) }))} /></div>
+            <div>
+              <Label>Level</Label>
+              <Select value={courseForm.level} onValueChange={v => setCourseForm(f => ({ ...f, level: v }))}>
+                <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="beginner">beginner</SelectItem>
+                  <SelectItem value="intermediate">intermediate</SelectItem>
+                  <SelectItem value="advanced">advanced</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div><Label>Duration</Label><Input className="mt-1" value={courseForm.duration} onChange={e => setCourseForm(f => ({ ...f, duration: e.target.value }))} placeholder="4 hours" /></div>
+            <div><Label>Image URL</Label><Input className="mt-1" value={courseForm.imageUrl} onChange={e => setCourseForm(f => ({ ...f, imageUrl: e.target.value }))} placeholder="https://..." /></div>
+            <div>
+              <Label>Published</Label>
+              <Select value={courseForm.isPublished ? "true" : "false"} onValueChange={v => setCourseForm(f => ({ ...f, isPublished: v === "true" }))}>
+                <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="true">Published</SelectItem>
+                  <SelectItem value="false">Draft</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <div><Label>Description *</Label><Textarea className="mt-1 min-h-[120px]" value={courseForm.description} onChange={e => setCourseForm(f => ({ ...f, description: e.target.value }))} placeholder="Course description..." /></div>
+          <Button onClick={() => createCourse.mutate()} disabled={!courseForm.slug || !courseForm.title || !courseForm.description || createCourse.isPending} className="rounded-full font-bold">
+            <Plus className="w-4 h-4 mr-2" />{createCourse.isPending ? "Creating..." : "Create Course"}
+          </Button>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader><CardTitle className="text-lg">Current Data</CardTitle></CardHeader>
+        <CardContent className="space-y-4">
+          <div>
+            <p className="text-sm font-bold mb-2">Tracks ({tracks.length})</p>
+            <div className="space-y-2">
+              {tracks.map((t: any) => (
+                <div key={t.id} className="p-3 rounded-xl border border-border/50 bg-card text-sm">
+                  <span className="font-semibold">{t.title}</span> <span className="text-muted-foreground">({t.slug})</span>
+                </div>
+              ))}
+            </div>
+          </div>
+          <div>
+            <p className="text-sm font-bold mb-2">Courses ({courses.length})</p>
+            <div className="space-y-2">
+              {courses.map((c: any) => (
+                <div key={c.id} className="p-3 rounded-xl border border-border/50 bg-card text-sm">
+                  <span className="font-semibold">{c.title}</span> <span className="text-muted-foreground">({c.slug})</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
 // ── Main Admin Dashboard ──────────────────────────────────────────────────
 const TABS = [
+  { id: "courses", label: "Courses", icon: GraduationCap },
   { id: "songs", label: "Songs", icon: Music },
   { id: "quiz", label: "Quiz Questions", icon: Brain },
   { id: "wordsearch", label: "Word Search", icon: Search },
@@ -560,7 +716,7 @@ const TABS = [
 type TabId = typeof TABS[number]["id"];
 
 export default function AdminDashboard() {
-  const [activeTab, setActiveTab] = useState<TabId>("songs");
+  const [activeTab, setActiveTab] = useState<TabId>("courses");
   const [loggedIn, setLoggedIn] = useState(false);
   const { toast } = useToast();
 
@@ -576,7 +732,7 @@ export default function AdminDashboard() {
     toast({ title: "Logged out" });
   }
 
-  const isAdmin = user?.role === "admin" || user?.email === "admin@biblicalfinancialcourses.com";
+  const isAdmin = user?.role === "admin";
 
   if (isLoading) {
     return (
@@ -622,6 +778,7 @@ export default function AdminDashboard() {
         </div>
 
         {/* Tab content */}
+        {activeTab === "courses" && <CoursesTab />}
         {activeTab === "songs" && <SongsTab />}
         {activeTab === "quiz" && <QuizTab />}
         {activeTab === "wordsearch" && <WordSearchTab />}

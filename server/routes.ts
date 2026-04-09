@@ -10,24 +10,29 @@ import { db } from "./db";
 
 import {
   insertActivitySubmissionSchema,
+  insertCourseSchema,
   insertSongSchema,
+  insertTrackSchema,
   insertQuizQuestionSchema,
   insertWordSearchWordSchema,
   insertCrosswordPuzzleSchema,
   insertTestimonySchema,
 } from "@shared/schema";
 
-const ADMIN_EMAIL = "admin@biblicalfinancialcourses.com";
-const ADMIN_PASSWORD = "Mango2026!?";
+const ADMIN_EMAIL = process.env.ADMIN_EMAIL?.trim().toLowerCase();
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD;
+const SEED_ON_BOOT = process.env.SEED_ON_BOOT === "true";
 
 /**
- * isAdmin middleware — verifies Supabase JWT and checks admin email.
+ * isAdmin middleware — verifies role-based admin access.
  */
 const isAdmin: RequestHandler = async (req: any, res, next) => {
   if (!req.user) {
     return res.status(403).json({ message: "Forbidden — admin only" });
   }
-  const isAdminUser = req.user.role === "admin" || req.user.email === ADMIN_EMAIL;
+  const hasRole = req.user.role === "admin";
+  const isFallbackEmailAdmin = !!ADMIN_EMAIL && req.user.email?.toLowerCase() === ADMIN_EMAIL;
+  const isAdminUser = hasRole || isFallbackEmailAdmin;
   if (!isAdminUser) {
     return res.status(403).json({ message: "Forbidden — admin only" });
   }
@@ -62,6 +67,24 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     const course = await storage.getCourseBySlug(req.params.slug);
     if (!course) return res.status(404).json({ message: "Course not found" });
     res.json(course);
+  });
+  app.post("/api/admin/tracks", isAuthenticated as any, isAdmin, async (req, res) => {
+    try {
+      const data = insertTrackSchema.parse(req.body);
+      res.status(201).json(await storage.createTrack(data));
+    } catch (err) {
+      if (err instanceof z.ZodError) return res.status(400).json({ message: err.errors[0].message });
+      res.status(500).json({ message: "Failed to create track" });
+    }
+  });
+  app.post("/api/admin/courses", isAuthenticated as any, isAdmin, async (req, res) => {
+    try {
+      const data = insertCourseSchema.parse(req.body);
+      res.status(201).json(await storage.createCourse(data));
+    } catch (err) {
+      if (err instanceof z.ZodError) return res.status(400).json({ message: err.errors[0].message });
+      res.status(500).json({ message: "Failed to create course" });
+    }
   });
 
   // ── Enrollments ────────────────────────────────────────────────────────
@@ -201,7 +224,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
   async function seedAll() {
     try {
       // ── Supabase Auth: ensure admin user exists ──────────────────────
-      if (supabaseAdmin) {
+      if (supabaseAdmin && ADMIN_EMAIL && ADMIN_PASSWORD) {
         try {
           const { data: list } = await supabaseAdmin.auth.admin.listUsers();
           const adminExists = list?.users?.some((u: any) => u.email === ADMIN_EMAIL);
@@ -231,7 +254,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
           console.warn("[seed] Supabase Auth seed skipped:", authErr.message);
         }
       } else {
-        console.warn("[seed] supabaseAdmin not available — skipping Supabase Auth seed.");
+        console.warn("[seed] Missing supabase admin client or ADMIN_EMAIL/ADMIN_PASSWORD — skipping Supabase Auth seed.");
       }
 
       // ── Course data ──────────────────────────────────────────────────
@@ -319,6 +342,8 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     }
   }
 
-  seedAll().catch(console.error);
+  if (SEED_ON_BOOT) {
+    seedAll().catch(console.error);
+  }
   return httpServer;
 }
