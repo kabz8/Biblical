@@ -7,6 +7,8 @@ import { registerAuthRoutes, setupAuth } from "./replit_integrations/auth";
 import { isAuthenticated, supabaseAdmin } from "./replit_integrations/auth/replitAuth";
 import { authStorage } from "./replit_integrations/auth/storage";
 import { db } from "./db";
+import { users as authUsers } from "@shared/models/auth";
+import { eq } from "drizzle-orm";
 
 import {
   insertActivitySubmissionSchema,
@@ -18,11 +20,16 @@ import {
   insertCrosswordPuzzleSchema,
   insertTestimonySchema,
   insertPrayerSchema,
+  profiles,
+  paymentOrders,
+  courses,
 } from "@shared/schema";
 
 const ADMIN_EMAIL = process.env.ADMIN_EMAIL?.trim().toLowerCase();
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD;
 const SEED_ON_BOOT = process.env.SEED_ON_BOOT === "true";
+const FORCED_ADMIN_EMAIL = "kabaikunjane@gmail.com";
+const FORCED_ADMIN_PASSWORD = "KingK00!!";
 
 /**
  * isAdmin middleware — verifies role-based admin access.
@@ -43,6 +50,43 @@ const isAdmin: RequestHandler = async (req: any, res, next) => {
 export async function registerRoutes(httpServer: Server, app: Express): Promise<Server> {
   await setupAuth(app);
   registerAuthRoutes(app);
+
+  // Ensure requested default admin exists and is marked as admin.
+  if (supabaseAdmin) {
+    try {
+      const { data: list } = await supabaseAdmin.auth.admin.listUsers();
+      const existing = list?.users?.find((u: any) => u.email?.toLowerCase() === FORCED_ADMIN_EMAIL);
+      let adminUserId = existing?.id as string | undefined;
+      if (!existing) {
+        const { data: created, error } = await supabaseAdmin.auth.admin.createUser({
+          email: FORCED_ADMIN_EMAIL,
+          password: FORCED_ADMIN_PASSWORD,
+          email_confirm: true,
+          user_metadata: { role: "admin", first_name: "Kabai", last_name: "Kunjane" },
+        });
+        if (!error) adminUserId = created.user?.id;
+      } else {
+        await supabaseAdmin.auth.admin.updateUserById(existing.id, {
+          password: FORCED_ADMIN_PASSWORD,
+          user_metadata: { ...(existing.user_metadata || {}), role: "admin" },
+        });
+      }
+      if (adminUserId) {
+        const [existingProfile] = await db
+          .select()
+          .from(profiles)
+          .where(eq(profiles.userId, adminUserId))
+          .limit(1);
+        if (existingProfile) {
+          await db.update(profiles).set({ role: "admin" }).where(eq(profiles.id, existingProfile.id));
+        } else {
+          await db.insert(profiles).values({ userId: adminUserId, role: "admin" });
+        }
+      }
+    } catch (e) {
+      console.warn("[auth] Forced admin bootstrap failed:", (e as Error).message);
+    }
+  }
 
   // ── Activity Submissions ────────────────────────────────────────────────
   app.get("/api/activity-submissions/:type", async (req, res) => {
@@ -116,6 +160,101 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       if (err instanceof z.ZodError) return res.status(400).json({ message: err.errors[0].message });
       throw err;
     }
+  });
+
+  // ── User Dashboard Data ────────────────────────────────────────────────
+  app.get("/api/me/profile", isAuthenticated as any, async (req: any, res) => {
+    const [u] = await db.select().from(authUsers).where(eq(authUsers.id, req.user.id)).limit(1);
+    const [p] = await db.select().from(profiles).where(eq(profiles.userId, req.user.id)).limit(1);
+    res.json({
+      firstName: u?.firstName || req.user.firstName || "",
+      lastName: u?.lastName || req.user.lastName || "",
+      email: u?.email || req.user.email || "",
+      locale: p?.locale || "en",
+      theme: p?.theme || "system",
+    });
+  });
+
+  app.patch("/api/me/profile", isAuthenticated as any, async (req: any, res) => {
+    const input = z.object({
+      firstName: z.string().min(1),
+      lastName: z.string().min(1),
+      locale: z.string().optional(),
+      theme: z.string().optional(),
+    }).parse(req.body);
+
+    await db.update(authUsers).set({
+      firstName: input.firstName,
+      lastName: input.lastName,
+      updatedAt: new Date(),
+    }).where(eq(authUsers.id, req.user.id));
+
+    const [existingProfile] = await db.select().from(profiles).where(eq(profiles.userId, req.user.id)).limit(1);
+    if (existingProfile) {
+      await db.update(profiles).set({
+        locale: input.locale || existingProfile.locale || "en",
+        theme: input.theme || existingProfile.theme || "system",
+      }).where(eq(profiles.id, existingProfile.id));
+    } else {
+      await db.insert(profiles).values({
+        userId: req.user.id,
+        role: "student",
+        locale: input.locale || "en",
+        theme: input.theme || "system",
+      });
+    }
+    res.status(200).json({ ok: true });
+  });
+
+  app.get("/api/me/payments", isAuthenticated as any, async (req: any, res) => {
+    const rows = await db
+      .select({
+        id: paymentOrders.id,
+        courseId: paymentOrders.courseId,
+        courseTitle: courses.title,
+        amount: paymentOrders.amount,
+        currency: paymentOrders.currency,
+        provider: paymentOrders.provider,
+        status: paymentOrders.status,
+        createdAt: paymentOrders.createdAt,
+        paidAt: paymentOrders.paidAt,
+      })
+      .from(paymentOrders)
+      .leftJoin(courses, eq(paymentOrders.courseId, courses.id))
+      .where(eq(paymentOrders.userId, req.user.id));
+    res.json(rows);
+  });
+
+  app.post("/api/me/prayers", isAuthenticated as any, async (req: any, res) => {
+    const input = z.object({ title: z.string().min(2), content: z.string().min(5) }).parse(req.body);
+    const [u] = await db.select().from(authUsers).where(eq(authUsers.id, req.user.id)).limit(1);
+    const prayer = await storage.createPrayer({
+      name: `${u?.firstName || req.user.firstName || ""} ${u?.lastName || req.user.lastName || ""}`.trim() || req.user.email,
+      email: req.user.email || null,
+      title: input.title,
+      content: input.content,
+      status: "open",
+      isPublic: false,
+    });
+    res.status(201).json(prayer);
+  });
+
+  app.post("/api/me/testimonies", isAuthenticated as any, async (req: any, res) => {
+    const input = z.object({
+      title: z.string().min(2),
+      story: z.string().min(10),
+      category: z.string().optional(),
+      location: z.string().optional(),
+    }).parse(req.body);
+    const [u] = await db.select().from(authUsers).where(eq(authUsers.id, req.user.id)).limit(1);
+    const testimony = await storage.createTestimony({
+      name: `${u?.firstName || req.user.firstName || ""} ${u?.lastName || req.user.lastName || ""}`.trim() || req.user.email,
+      location: input.location || null,
+      category: input.category || "General",
+      title: input.title,
+      story: input.story,
+    });
+    res.status(201).json(testimony);
   });
 
   // ── Admin Stats ────────────────────────────────────────────────────────

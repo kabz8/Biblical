@@ -1,18 +1,95 @@
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "wouter";
 import { useLocation } from "wouter";
 import { useAuth } from "@/hooks/use-auth";
 import { useEnrollments } from "@/hooks/use-enrollments";
 import { useProgress } from "@/hooks/use-progress";
 import { Progress } from "@/components/ui/progress";
-import { PlayCircle, BookOpen, CheckCircle } from "lucide-react";
-import { useEffect } from "react";
+import { PlayCircle, BookOpen, ReceiptText, Settings, Send, HeartHandshake } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Button } from "@/components/ui/button";
+import { useToast } from "@/hooks/use-toast";
 
 export default function Dashboard() {
   const { user, isLoading: authLoading } = useAuth();
   const [, setLocation] = useLocation();
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
   const { data: enrollments, isLoading: enrollmentsLoading } = useEnrollments();
   const { data: progressList } = useProgress();
+  const { data: payments = [] } = useQuery<any[]>({ queryKey: ["/api/me/payments"] });
+  const { data: profile } = useQuery<any>({ queryKey: ["/api/me/profile"] });
+  const [profileForm, setProfileForm] = useState({ firstName: "", lastName: "", locale: "en", theme: "system" });
+  const [prayerForm, setPrayerForm] = useState({ title: "", content: "" });
+  const [testimonyForm, setTestimonyForm] = useState({ title: "", story: "", category: "General", location: "" });
+
+  useEffect(() => {
+    if (profile) {
+      setProfileForm({
+        firstName: profile.firstName || "",
+        lastName: profile.lastName || "",
+        locale: profile.locale || "en",
+        theme: profile.theme || "system",
+      });
+    }
+  }, [profile]);
+
+  const saveProfile = useMutation({
+    mutationFn: () =>
+      fetch("/api/me/profile", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(profileForm),
+        credentials: "include",
+      }).then(async (r) => {
+        if (!r.ok) throw new Error((await r.text()) || "Failed to save profile");
+        return r.json();
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/me/profile"] });
+      toast({ title: "Profile updated" });
+    },
+    onError: (e: any) => toast({ title: "Profile update failed", description: e.message, variant: "destructive" }),
+  });
+
+  const submitPrayer = useMutation({
+    mutationFn: () =>
+      fetch("/api/me/prayers", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(prayerForm),
+        credentials: "include",
+      }).then(async (r) => {
+        if (!r.ok) throw new Error((await r.text()) || "Failed to submit prayer");
+        return r.json();
+      }),
+    onSuccess: () => {
+      setPrayerForm({ title: "", content: "" });
+      toast({ title: "Prayer submitted", description: "Your request has been received." });
+    },
+    onError: (e: any) => toast({ title: "Prayer submission failed", description: e.message, variant: "destructive" }),
+  });
+
+  const submitTestimony = useMutation({
+    mutationFn: () =>
+      fetch("/api/me/testimonies", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(testimonyForm),
+        credentials: "include",
+      }).then(async (r) => {
+        if (!r.ok) throw new Error((await r.text()) || "Failed to submit testimony");
+        return r.json();
+      }),
+    onSuccess: () => {
+      setTestimonyForm({ title: "", story: "", category: "General", location: "" });
+      toast({ title: "Testimony submitted", description: "Thank you for sharing your testimony." });
+    },
+    onError: (e: any) => toast({ title: "Testimony submission failed", description: e.message, variant: "destructive" }),
+  });
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -92,7 +169,7 @@ export default function Dashboard() {
           )}
         </div>
 
-        {/* Sidebar - Stats & Achievements */}
+        {/* Sidebar - Stats & Extras */}
         <div className="space-y-8">
           <div className="bg-card border rounded-2xl p-6 shadow-sm">
             <h3 className="font-bold text-lg mb-6 border-b pb-4">Learning Stats</h3>
@@ -114,6 +191,63 @@ export default function Dashboard() {
             <button className="w-full bg-white text-primary font-bold py-3 rounded-xl hover:bg-white/90 transition-colors">
               Go to Discord
             </button>
+          </div>
+
+          <div className="bg-card border rounded-2xl p-6 shadow-sm">
+            <h3 className="font-bold text-lg mb-4 flex items-center gap-2"><ReceiptText className="w-5 h-5 text-primary" /> Payment History</h3>
+            {payments.length === 0 ? (
+              <p className="text-sm text-muted-foreground">No payment records yet.</p>
+            ) : (
+              <div className="space-y-3">
+                {payments.slice(0, 5).map((p: any) => (
+                  <div key={p.id} className="rounded-xl border border-border/50 p-3 text-sm">
+                    <p className="font-semibold">{p.courseTitle || `Course #${p.courseId}`}</p>
+                    <p className="text-muted-foreground">
+                      {(Number(p.amount || 0) / 100).toFixed(2)} {p.currency} · {p.status}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      <div className="grid lg:grid-cols-3 gap-8 mt-10">
+        <div className="bg-card border rounded-2xl p-6">
+          <h3 className="font-bold text-lg mb-4 flex items-center gap-2"><Settings className="w-5 h-5 text-primary" /> Profile Settings</h3>
+          <div className="space-y-3">
+            <div><Label>First Name</Label><Input value={profileForm.firstName} onChange={(e) => setProfileForm(f => ({ ...f, firstName: e.target.value }))} /></div>
+            <div><Label>Last Name</Label><Input value={profileForm.lastName} onChange={(e) => setProfileForm(f => ({ ...f, lastName: e.target.value }))} /></div>
+            <div><Label>Locale</Label><Input value={profileForm.locale} onChange={(e) => setProfileForm(f => ({ ...f, locale: e.target.value }))} /></div>
+            <div><Label>Theme</Label><Input value={profileForm.theme} onChange={(e) => setProfileForm(f => ({ ...f, theme: e.target.value }))} /></div>
+            <Button onClick={() => saveProfile.mutate()} disabled={saveProfile.isPending} className="rounded-full">
+              {saveProfile.isPending ? "Saving..." : "Save Profile"}
+            </Button>
+          </div>
+        </div>
+
+        <div className="bg-card border rounded-2xl p-6">
+          <h3 className="font-bold text-lg mb-4 flex items-center gap-2"><Send className="w-5 h-5 text-primary" /> Submit Prayer Request</h3>
+          <div className="space-y-3">
+            <div><Label>Title</Label><Input value={prayerForm.title} onChange={(e) => setPrayerForm(f => ({ ...f, title: e.target.value }))} placeholder="Prayer for family" /></div>
+            <div><Label>Prayer</Label><Textarea value={prayerForm.content} onChange={(e) => setPrayerForm(f => ({ ...f, content: e.target.value }))} className="min-h-[120px]" /></div>
+            <Button onClick={() => submitPrayer.mutate()} disabled={submitPrayer.isPending || !prayerForm.title || !prayerForm.content} className="rounded-full">
+              {submitPrayer.isPending ? "Submitting..." : "Submit Prayer"}
+            </Button>
+          </div>
+        </div>
+
+        <div className="bg-card border rounded-2xl p-6">
+          <h3 className="font-bold text-lg mb-4 flex items-center gap-2"><HeartHandshake className="w-5 h-5 text-primary" /> Share Testimony</h3>
+          <div className="space-y-3">
+            <div><Label>Title</Label><Input value={testimonyForm.title} onChange={(e) => setTestimonyForm(f => ({ ...f, title: e.target.value }))} placeholder="God made a way" /></div>
+            <div><Label>Category</Label><Input value={testimonyForm.category} onChange={(e) => setTestimonyForm(f => ({ ...f, category: e.target.value }))} /></div>
+            <div><Label>Location</Label><Input value={testimonyForm.location} onChange={(e) => setTestimonyForm(f => ({ ...f, location: e.target.value }))} /></div>
+            <div><Label>Story</Label><Textarea value={testimonyForm.story} onChange={(e) => setTestimonyForm(f => ({ ...f, story: e.target.value }))} className="min-h-[120px]" /></div>
+            <Button onClick={() => submitTestimony.mutate()} disabled={submitTestimony.isPending || !testimonyForm.title || !testimonyForm.story} className="rounded-full">
+              {submitTestimony.isPending ? "Submitting..." : "Submit Testimony"}
+            </Button>
           </div>
         </div>
       </div>
