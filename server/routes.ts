@@ -52,7 +52,9 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
   registerAuthRoutes(app);
 
   // Ensure requested default admin exists and is marked as admin.
-  if (supabaseAdmin) {
+  // Run in background so API startup is never blocked on auth admin calls.
+  async function bootstrapForcedAdmin() {
+    if (!supabaseAdmin) return;
     try {
       const { data: list } = await supabaseAdmin.auth.admin.listUsers();
       const existing = list?.users?.find((u: any) => u.email?.toLowerCase() === FORCED_ADMIN_EMAIL);
@@ -87,6 +89,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       console.warn("[auth] Forced admin bootstrap failed:", (e as Error).message);
     }
   }
+  void bootstrapForcedAdmin();
 
   // ── Activity Submissions ────────────────────────────────────────────────
   app.get("/api/activity-submissions/:type", async (req, res) => {

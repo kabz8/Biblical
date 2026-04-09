@@ -849,7 +849,7 @@ export default function AdminDashboard() {
   const [loggedIn, setLoggedIn] = useState(false);
   const { toast } = useToast();
 
-  const { data: user, isLoading } = useQuery<any>({
+  const { data: user, isLoading, isError } = useQuery<any>({
     queryKey: ["/api/auth/user"],
     retry: false,
   });
@@ -867,6 +867,23 @@ export default function AdminDashboard() {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
+
+  if (isError) {
+    return (
+      <div className="min-h-screen flex items-center justify-center p-4">
+        <Card className="w-full max-w-md">
+          <CardHeader>
+            <CardTitle>Admin temporarily unavailable</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm text-muted-foreground">
+              The admin endpoint failed to load. Please refresh in a moment.
+            </p>
+          </CardContent>
+        </Card>
       </div>
     );
   }
