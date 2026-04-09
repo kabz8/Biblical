@@ -543,6 +543,89 @@ function TestimoniesTab() {
   );
 }
 
+function PrayersTab() {
+  const { toast } = useToast();
+  const { data: prayers = [], isLoading } = useQuery<any[]>({ queryKey: ["/api/admin/prayers"] });
+  const [form, setForm] = useState({ name: "", email: "", title: "", content: "", status: "open", isPublic: true });
+
+  const create = useMutation({
+    mutationFn: () => apiRequest("POST", "/api/admin/prayers", form),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/prayers"] });
+      setForm({ name: "", email: "", title: "", content: "", status: "open", isPublic: true });
+      toast({ title: "Prayer added" });
+    },
+    onError: () => toast({ title: "Failed to add prayer", variant: "destructive" }),
+  });
+
+  const del = useMutation({
+    mutationFn: (id: number) => apiRequest("DELETE", `/api/admin/prayers/${id}`),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["/api/admin/prayers"] }),
+  });
+
+  return (
+    <div className="space-y-6">
+      <Card>
+        <CardHeader><CardTitle className="text-lg">Add Prayer</CardTitle></CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid sm:grid-cols-2 gap-4">
+            <div><Label>Name *</Label><Input className="mt-1" value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder="Jane Doe" /></div>
+            <div><Label>Email</Label><Input className="mt-1" value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} placeholder="jane@example.com" /></div>
+            <div><Label>Title *</Label><Input className="mt-1" value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))} placeholder="Prayer for wisdom" /></div>
+            <div>
+              <Label>Status</Label>
+              <Select value={form.status} onValueChange={v => setForm(f => ({ ...f, status: v }))}>
+                <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="open">open</SelectItem>
+                  <SelectItem value="answered">answered</SelectItem>
+                  <SelectItem value="archived">archived</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label>Visibility</Label>
+              <Select value={form.isPublic ? "public" : "private"} onValueChange={v => setForm(f => ({ ...f, isPublic: v === "public" }))}>
+                <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="public">Public</SelectItem>
+                  <SelectItem value="private">Private</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <div><Label>Prayer *</Label><Textarea className="mt-1 min-h-[120px]" value={form.content} onChange={e => setForm(f => ({ ...f, content: e.target.value }))} placeholder="Write the prayer content..." /></div>
+          <Button onClick={() => create.mutate()} disabled={!form.name || !form.title || !form.content || create.isPending} className="rounded-full font-bold">
+            <Plus className="w-4 h-4 mr-2" />{create.isPending ? "Adding..." : "Add Prayer"}
+          </Button>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader><CardTitle className="text-lg">Prayers ({prayers.length})</CardTitle></CardHeader>
+        <CardContent>
+          {isLoading ? <p className="text-sm text-muted-foreground">Loading…</p> :
+            prayers.length === 0 ? <p className="text-sm text-muted-foreground">No prayers yet.</p> :
+              <div className="space-y-2">
+                {prayers.map((p: any) => (
+                  <div key={p.id} className="flex items-start gap-3 p-3 rounded-xl border border-border/50 bg-card">
+                    <div className="flex-1 min-w-0">
+                      <p className="font-bold">{p.title}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {p.name} {p.email ? `· ${p.email}` : ""} · {p.status} · {p.isPublic ? "public" : "private"}
+                      </p>
+                      <p className="text-sm text-muted-foreground mt-1 line-clamp-2">{p.content}</p>
+                    </div>
+                    <DeleteBtn onDelete={() => del.mutate(p.id)} />
+                  </div>
+                ))}
+              </div>}
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
 // ── Tracks & Courses Tab ───────────────────────────────────────────────────
 function CoursesTab() {
   const { toast } = useToast();
@@ -567,30 +650,58 @@ function CoursesTab() {
     imageUrl: "",
     isPublished: true,
   });
+  const [trackImageFile, setTrackImageFile] = useState<File | null>(null);
+  const [courseImageFile, setCourseImageFile] = useState<File | null>(null);
+
+  async function uploadImage(file: File, folder: "tracks" | "courses"): Promise<string> {
+    const extension = file.name.split(".").pop()?.toLowerCase() || "jpg";
+    const path = `${folder}/${Date.now()}-${Math.random().toString(36).slice(2)}.${extension}`;
+    const { error: uploadError } = await supabase.storage
+      .from("course-images")
+      .upload(path, file, { upsert: false, cacheControl: "3600" });
+    if (uploadError) {
+      throw new Error(
+        `${uploadError.message}. Ensure a public 'course-images' bucket exists in Supabase Storage.`
+      );
+    }
+    const { data } = supabase.storage.from("course-images").getPublicUrl(path);
+    return data.publicUrl;
+  }
 
   const createTrack = useMutation({
-    mutationFn: () =>
-      apiRequest("POST", "/api/admin/tracks", {
+    mutationFn: async () => {
+      let imageUrl = trackForm.imageUrl || null;
+      if (trackImageFile) {
+        imageUrl = await uploadImage(trackImageFile, "tracks");
+      }
+      return apiRequest("POST", "/api/admin/tracks", {
         ...trackForm,
         order: Number(trackForm.order) || 0,
-        imageUrl: trackForm.imageUrl || null,
-      }),
+        imageUrl,
+      });
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/tracks"] });
       setTrackForm({ slug: "", title: "", description: "", imageUrl: "", order: 0 });
+      setTrackImageFile(null);
       toast({ title: "Track created" });
     },
-    onError: () => toast({ title: "Failed to create track", variant: "destructive" }),
+    onError: (err: any) => toast({ title: "Failed to create track", description: err?.message, variant: "destructive" }),
   });
 
   const createCourse = useMutation({
-    mutationFn: () =>
-      apiRequest("POST", "/api/admin/courses", {
+    mutationFn: async () => {
+      let imageUrl = courseForm.imageUrl || null;
+      if (courseImageFile) {
+        imageUrl = await uploadImage(courseImageFile, "courses");
+      }
+      return apiRequest("POST", "/api/admin/courses", {
         ...courseForm,
         trackId: courseForm.trackId ? Number(courseForm.trackId) : null,
         price: Number(courseForm.price) || 0,
-        imageUrl: courseForm.imageUrl || null,
-      }),
+        imageUrl,
+      });
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/courses"] });
       setCourseForm({
@@ -604,9 +715,10 @@ function CoursesTab() {
         imageUrl: "",
         isPublished: true,
       });
+      setCourseImageFile(null);
       toast({ title: "Course created" });
     },
-    onError: () => toast({ title: "Failed to create course", variant: "destructive" }),
+    onError: (err: any) => toast({ title: "Failed to create course", description: err?.message, variant: "destructive" }),
   });
 
   return (
@@ -618,11 +730,19 @@ function CoursesTab() {
             <div><Label>Slug *</Label><Input className="mt-1" value={trackForm.slug} onChange={e => setTrackForm(f => ({ ...f, slug: e.target.value }))} placeholder="foundations" /></div>
             <div><Label>Title *</Label><Input className="mt-1" value={trackForm.title} onChange={e => setTrackForm(f => ({ ...f, title: e.target.value }))} placeholder="Foundations of Stewardship" /></div>
             <div><Label>Order</Label><Input className="mt-1" type="number" value={trackForm.order} onChange={e => setTrackForm(f => ({ ...f, order: Number(e.target.value) }))} /></div>
-            <div><Label>Image URL</Label><Input className="mt-1" value={trackForm.imageUrl} onChange={e => setTrackForm(f => ({ ...f, imageUrl: e.target.value }))} placeholder="https://..." /></div>
+            <div>
+              <Label>Track Image</Label>
+              <Input
+                className="mt-1"
+                type="file"
+                accept="image/*"
+                onChange={e => setTrackImageFile(e.target.files?.[0] || null)}
+              />
+            </div>
           </div>
           <div><Label>Description *</Label><Textarea className="mt-1" value={trackForm.description} onChange={e => setTrackForm(f => ({ ...f, description: e.target.value }))} placeholder="Track description..." /></div>
           <Button onClick={() => createTrack.mutate()} disabled={!trackForm.slug || !trackForm.title || !trackForm.description || createTrack.isPending} className="rounded-full font-bold">
-            <Plus className="w-4 h-4 mr-2" />{createTrack.isPending ? "Creating..." : "Create Track"}
+            <Plus className="w-4 h-4 mr-2" />{createTrack.isPending ? "Uploading/Creating..." : "Create Track"}
           </Button>
         </CardContent>
       </Card>
@@ -655,7 +775,15 @@ function CoursesTab() {
               </Select>
             </div>
             <div><Label>Duration</Label><Input className="mt-1" value={courseForm.duration} onChange={e => setCourseForm(f => ({ ...f, duration: e.target.value }))} placeholder="4 hours" /></div>
-            <div><Label>Image URL</Label><Input className="mt-1" value={courseForm.imageUrl} onChange={e => setCourseForm(f => ({ ...f, imageUrl: e.target.value }))} placeholder="https://..." /></div>
+            <div>
+              <Label>Course Image</Label>
+              <Input
+                className="mt-1"
+                type="file"
+                accept="image/*"
+                onChange={e => setCourseImageFile(e.target.files?.[0] || null)}
+              />
+            </div>
             <div>
               <Label>Published</Label>
               <Select value={courseForm.isPublished ? "true" : "false"} onValueChange={v => setCourseForm(f => ({ ...f, isPublished: v === "true" }))}>
@@ -669,7 +797,7 @@ function CoursesTab() {
           </div>
           <div><Label>Description *</Label><Textarea className="mt-1 min-h-[120px]" value={courseForm.description} onChange={e => setCourseForm(f => ({ ...f, description: e.target.value }))} placeholder="Course description..." /></div>
           <Button onClick={() => createCourse.mutate()} disabled={!courseForm.slug || !courseForm.title || !courseForm.description || createCourse.isPending} className="rounded-full font-bold">
-            <Plus className="w-4 h-4 mr-2" />{createCourse.isPending ? "Creating..." : "Create Course"}
+            <Plus className="w-4 h-4 mr-2" />{createCourse.isPending ? "Uploading/Creating..." : "Create Course"}
           </Button>
         </CardContent>
       </Card>
@@ -711,6 +839,7 @@ const TABS = [
   { id: "wordsearch", label: "Word Search", icon: Search },
   { id: "crossword", label: "Crossword", icon: Grid3X3 },
   { id: "testimonies", label: "Testimonies", icon: MessageSquare },
+  { id: "prayers", label: "Prayers", icon: MessageSquare },
 ] as const;
 
 type TabId = typeof TABS[number]["id"];
@@ -784,6 +913,7 @@ export default function AdminDashboard() {
         {activeTab === "wordsearch" && <WordSearchTab />}
         {activeTab === "crossword" && <CrosswordTab />}
         {activeTab === "testimonies" && <TestimoniesTab />}
+        {activeTab === "prayers" && <PrayersTab />}
       </div>
     </div>
   );

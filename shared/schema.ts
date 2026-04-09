@@ -62,6 +62,30 @@ export const enrollments = pgTable("enrollments", {
   status: text("status").default("active"),
 });
 
+export const paymentOrders = pgTable("payment_orders", {
+  id: serial("id").primaryKey(),
+  userId: text("user_id").notNull().references(() => users.id),
+  courseId: integer("course_id").notNull().references(() => courses.id),
+  amount: integer("amount").notNull(), // minor units (e.g. cents)
+  currency: text("currency").notNull().default("USD"),
+  provider: text("provider").notNull().default("manual"), // stripe | flutterwave | manual
+  providerOrderId: text("provider_order_id"),
+  status: text("status").notNull().default("pending"), // pending | paid | failed | refunded
+  createdAt: timestamp("created_at").defaultNow(),
+  paidAt: timestamp("paid_at"),
+});
+
+export const paymentTransactions = pgTable("payment_transactions", {
+  id: serial("id").primaryKey(),
+  orderId: integer("order_id").notNull().references(() => paymentOrders.id),
+  providerTxnId: text("provider_txn_id"),
+  amount: integer("amount").notNull(),
+  currency: text("currency").notNull().default("USD"),
+  status: text("status").notNull().default("pending"), // pending | succeeded | failed | refunded
+  rawPayload: text("raw_payload"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
 export const progress = pgTable("progress", {
   id: serial("id").primaryKey(),
   userId: text("user_id").notNull().references(() => users.id),
@@ -130,6 +154,17 @@ export const testimonies = pgTable("testimonies", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
+export const prayers = pgTable("prayers", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull(),
+  email: text("email"),
+  title: text("title").notNull(),
+  content: text("content").notNull(),
+  status: text("status").notNull().default("open"), // open | answered | archived
+  isPublic: boolean("is_public").notNull().default(false),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
 // ── Zod Schemas ───────────────────────────────────────────────────────────
 
 export const insertActivitySubmissionSchema = createInsertSchema(activitySubmissions).omit({ id: true, submittedAt: true });
@@ -138,6 +173,7 @@ export const insertQuizQuestionSchema = createInsertSchema(quizQuestions).omit({
 export const insertWordSearchWordSchema = createInsertSchema(wordSearchWords).omit({ id: true, createdAt: true });
 export const insertCrosswordPuzzleSchema = createInsertSchema(crosswordPuzzles).omit({ id: true, createdAt: true });
 export const insertTestimonySchema = createInsertSchema(testimonies).omit({ id: true, createdAt: true });
+export const insertPrayerSchema = createInsertSchema(prayers).omit({ id: true, createdAt: true });
 
 // ── Types ─────────────────────────────────────────────────────────────────
 
@@ -153,6 +189,10 @@ export type CrosswordPuzzle = typeof crosswordPuzzles.$inferSelect;
 export type InsertCrosswordPuzzle = z.infer<typeof insertCrosswordPuzzleSchema>;
 export type Testimony = typeof testimonies.$inferSelect;
 export type InsertTestimony = z.infer<typeof insertTestimonySchema>;
+export type Prayer = typeof prayers.$inferSelect;
+export type InsertPrayer = z.infer<typeof insertPrayerSchema>;
+export type PaymentOrder = typeof paymentOrders.$inferSelect;
+export type PaymentTransaction = typeof paymentTransactions.$inferSelect;
 
 export const coursesRelations = relations(courses, ({ one, many }) => ({
   track: one(tracks, { fields: [courses.trackId], references: [tracks.id] }),

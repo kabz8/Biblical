@@ -17,6 +17,7 @@ import {
   insertWordSearchWordSchema,
   insertCrosswordPuzzleSchema,
   insertTestimonySchema,
+  insertPrayerSchema,
 } from "@shared/schema";
 
 const ADMIN_EMAIL = process.env.ADMIN_EMAIL?.trim().toLowerCase();
@@ -217,6 +218,27 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
   });
   app.delete("/api/admin/testimonies/:id", isAuthenticated as any, isAdmin, async (req, res) => {
     await storage.deleteTestimony(Number(req.params.id));
+    res.sendStatus(204);
+  });
+
+  // ── Prayers (Public GET for approved, Admin full CRUD-lite) ────────────
+  app.get("/api/prayers", async (_, res) => {
+    res.json(await storage.getPrayers(true));
+  });
+  app.get("/api/admin/prayers", isAuthenticated as any, isAdmin, async (_, res) => {
+    res.json(await storage.getPrayers(false));
+  });
+  app.post("/api/admin/prayers", isAuthenticated as any, isAdmin, async (req, res) => {
+    try {
+      const data = insertPrayerSchema.parse(req.body);
+      res.status(201).json(await storage.createPrayer(data));
+    } catch (err) {
+      if (err instanceof z.ZodError) return res.status(400).json({ message: err.errors[0].message });
+      res.status(500).json({ message: "Failed to create prayer" });
+    }
+  });
+  app.delete("/api/admin/prayers/:id", isAuthenticated as any, isAdmin, async (req, res) => {
+    await storage.deletePrayer(Number(req.params.id));
     res.sendStatus(204);
   });
 

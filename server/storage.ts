@@ -1,7 +1,7 @@
 import { db } from "./db";
 import {
   tracks, courses, modules, lessons, enrollments, progress, profiles, activitySubmissions,
-  songs, quizQuestions, wordSearchWords, crosswordPuzzles, testimonies,
+  songs, quizQuestions, wordSearchWords, crosswordPuzzles, testimonies, prayers,
   type Track, type Course, type Module, type Lesson, type Enrollment, type Progress, type Profile,
   type ActivitySubmission, type InsertActivitySubmission,
   type Song, type InsertSong,
@@ -9,6 +9,7 @@ import {
   type WordSearchWord, type InsertWordSearchWord,
   type CrosswordPuzzle, type InsertCrosswordPuzzle,
   type Testimony, type InsertTestimony,
+  type Prayer, type InsertPrayer,
 } from "@shared/schema";
 import { eq, and } from "drizzle-orm";
 
@@ -54,6 +55,11 @@ export interface IStorage {
   getTestimonies(): Promise<Testimony[]>;
   createTestimony(t: InsertTestimony): Promise<Testimony>;
   deleteTestimony(id: number): Promise<void>;
+
+  // Prayers
+  getPrayers(isPublicOnly?: boolean): Promise<Prayer[]>;
+  createPrayer(p: InsertPrayer): Promise<Prayer>;
+  deletePrayer(id: number): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -107,6 +113,14 @@ export class DatabaseStorage implements IStorage {
   async getTestimonies() { return db.select().from(testimonies).orderBy(testimonies.createdAt); }
   async createTestimony(t: InsertTestimony) { const [r] = await db.insert(testimonies).values(t).returning(); return r; }
   async deleteTestimony(id: number) { await db.delete(testimonies).where(eq(testimonies.id, id)); }
+
+  // Prayers
+  async getPrayers(isPublicOnly?: boolean) {
+    if (isPublicOnly) return db.select().from(prayers).where(eq(prayers.isPublic, true)).orderBy(prayers.createdAt);
+    return db.select().from(prayers).orderBy(prayers.createdAt);
+  }
+  async createPrayer(p: InsertPrayer) { const [r] = await db.insert(prayers).values(p).returning(); return r; }
+  async deletePrayer(id: number) { await db.delete(prayers).where(eq(prayers.id, id)); }
 }
 
 export const storage = new DatabaseStorage();
