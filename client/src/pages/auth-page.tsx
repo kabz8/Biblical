@@ -54,7 +54,12 @@ export default function AuthPage() {
   });
 
   useEffect(() => {
-    if (user) setLocation("/dashboard");
+    if (!user) return;
+    if (user.role === "admin") {
+      setLocation("/admin");
+      return;
+    }
+    setLocation("/dashboard");
   }, [user, setLocation]);
 
   if (user) return null;
