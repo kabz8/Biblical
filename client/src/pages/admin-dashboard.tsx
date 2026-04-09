@@ -1014,30 +1014,44 @@ export default function AdminDashboard() {
       </div>
 
       <div className="container mx-auto px-4 py-8">
-        {/* Stats summary */}
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-8">
-          {TABS.map(tab => {
-            const Icon = tab.icon;
-            return (
-              <button key={tab.id} onClick={() => setActiveTab(tab.id)}
-                className={`flex items-center gap-3 p-4 rounded-2xl border-2 text-left transition-all ${activeTab === tab.id ? "border-primary bg-primary/5" : "border-border/50 bg-card hover:border-primary/30"}`}>
-                <Icon className={`w-5 h-5 shrink-0 ${activeTab === tab.id ? "text-primary" : "text-muted-foreground"}`} />
-                <span className={`text-sm font-bold ${activeTab === tab.id ? "text-primary" : ""}`}>{tab.label}</span>
-                {activeTab === tab.id && <ChevronRight className="w-4 h-4 text-primary ml-auto" />}
-              </button>
-            );
-          })}
-        </div>
+        <div className="grid lg:grid-cols-[260px_1fr] gap-6 items-start">
+          <aside className="lg:sticky lg:top-24">
+            <div className="bg-card border border-border/50 rounded-2xl p-3">
+              <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground px-2 pb-2">Admin Menu</p>
+              <div className="space-y-2">
+                {TABS.map(tab => {
+                  const Icon = tab.icon;
+                  return (
+                    <button
+                      key={tab.id}
+                      onClick={() => setActiveTab(tab.id)}
+                      className={`w-full flex items-center gap-3 p-3 rounded-xl border text-left transition-all ${
+                        activeTab === tab.id
+                          ? "border-primary bg-primary/5"
+                          : "border-border/50 bg-background hover:border-primary/30"
+                      }`}
+                    >
+                      <Icon className={`w-5 h-5 shrink-0 ${activeTab === tab.id ? "text-primary" : "text-muted-foreground"}`} />
+                      <span className={`text-sm font-bold ${activeTab === tab.id ? "text-primary" : ""}`}>{tab.label}</span>
+                      {activeTab === tab.id && <ChevronRight className="w-4 h-4 text-primary ml-auto" />}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          </aside>
 
-        {/* Tab content */}
-        {activeTab === "courses" && <CoursesTab />}
-        {activeTab === "songs" && <SongsTab />}
-        {activeTab === "quiz" && <QuizTab />}
-        {activeTab === "wordsearch" && <WordSearchTab />}
-        {activeTab === "crossword" && <CrosswordTab />}
-        {activeTab === "testimonies" && <TestimoniesTab />}
-        {activeTab === "prayers" && <PrayersTab />}
-        {activeTab === "students" && <StudentsTasksTab />}
+          <main>
+            {activeTab === "courses" && <CoursesTab />}
+            {activeTab === "songs" && <SongsTab />}
+            {activeTab === "quiz" && <QuizTab />}
+            {activeTab === "wordsearch" && <WordSearchTab />}
+            {activeTab === "crossword" && <CrosswordTab />}
+            {activeTab === "testimonies" && <TestimoniesTab />}
+            {activeTab === "prayers" && <PrayersTab />}
+            {activeTab === "students" && <StudentsTasksTab />}
+          </main>
+        </div>
       </div>
     </div>
   );

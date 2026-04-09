@@ -332,6 +332,50 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
         enrolledAt: r.enrolledAt,
       });
     }
+
+    // Also include registered users who are not yet enrolled in any course.
+    const allUsers = await db
+      .select({
+        id: authUsers.id,
+        email: authUsers.email,
+        firstName: authUsers.firstName,
+        lastName: authUsers.lastName,
+      })
+      .from(authUsers);
+
+    for (const u of allUsers) {
+      if (!studentsMap.has(u.id)) {
+        studentsMap.set(u.id, {
+          userId: u.id,
+          email: u.email,
+          firstName: u.firstName,
+          lastName: u.lastName,
+          enrollments: [],
+        });
+      }
+    }
+
+    // Supabase-auth-only users might not be mirrored yet in public.users.
+    if (supabaseAdmin) {
+      try {
+        const { data } = await supabaseAdmin.auth.admin.listUsers();
+        for (const u of data?.users || []) {
+          if (!u.id || !u.email) continue;
+          if (!studentsMap.has(u.id)) {
+            studentsMap.set(u.id, {
+              userId: u.id,
+              email: u.email,
+              firstName: (u.user_metadata as any)?.first_name || "",
+              lastName: (u.user_metadata as any)?.last_name || "",
+              enrollments: [],
+            });
+          }
+        }
+      } catch {
+        // Non-fatal: still return DB users if Supabase admin list fails.
+      }
+    }
+
     res.json([...studentsMap.values()]);
   });
 
