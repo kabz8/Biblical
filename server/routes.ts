@@ -379,6 +379,48 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     res.json([...studentsMap.values()]);
   });
 
+  app.post("/api/admin/sync-users", isAuthenticated as any, isAdmin, async (_req, res) => {
+    if (!supabaseAdmin) {
+      return res.status(503).json({ message: "Supabase admin client not configured" });
+    }
+
+    const { data, error } = await supabaseAdmin.auth.admin.listUsers();
+    if (error) {
+      return res.status(500).json({ message: error.message || "Failed to list users from Supabase" });
+    }
+
+    let synced = 0;
+    for (const u of data?.users || []) {
+      if (!u.id || !u.email) continue;
+      const meta: any = u.user_metadata || {};
+      await authStorage.upsertUser({
+        id: u.id,
+        email: u.email,
+        firstName: meta.first_name || meta.firstName || null,
+        lastName: meta.last_name || meta.lastName || null,
+        profileImageUrl: meta.avatar_url || null,
+      });
+
+      const [existingProfile] = await db
+        .select()
+        .from(profiles)
+        .where(eq(profiles.userId, u.id))
+        .limit(1);
+
+      if (!existingProfile) {
+        await db.insert(profiles).values({
+          userId: u.id,
+          role: meta.role || "student",
+          locale: "en",
+          theme: "system",
+        });
+      }
+      synced++;
+    }
+
+    res.json({ synced });
+  });
+
   app.get("/api/admin/tasks", isAuthenticated as any, isAdmin, async (_, res) => {
     const rows = await db
       .select({

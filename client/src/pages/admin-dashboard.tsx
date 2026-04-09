@@ -685,6 +685,15 @@ function StudentsTasksTab() {
     onError: (err: any) => toast({ title: "Failed to assign task", description: err?.message, variant: "destructive" }),
   });
 
+  const syncUsers = useMutation({
+    mutationFn: () => apiRequest("POST", "/api/admin/sync-users"),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["/api/admin/students"] });
+      toast({ title: "Registered users synced" });
+    },
+    onError: (err: any) => toast({ title: "User sync failed", description: err?.message, variant: "destructive" }),
+  });
+
   return (
     <div className="space-y-6">
       <Card>
@@ -726,6 +735,11 @@ function StudentsTasksTab() {
       <Card>
         <CardHeader><CardTitle className="text-lg">Enrolled Students ({students.length})</CardTitle></CardHeader>
         <CardContent>
+          <div className="mb-4">
+            <Button variant="outline" size="sm" onClick={() => syncUsers.mutate()} disabled={syncUsers.isPending}>
+              {syncUsers.isPending ? "Syncing..." : "Sync Registered Users"}
+            </Button>
+          </div>
           {loadingStudents ? <p className="text-sm text-muted-foreground">Loading…</p> :
             students.length === 0 ? <p className="text-sm text-muted-foreground">No enrolled students yet.</p> :
               <div className="space-y-2">
