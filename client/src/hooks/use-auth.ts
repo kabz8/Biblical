@@ -34,10 +34,14 @@ export function useAuth() {
       const { data: { session } } = await supabase.auth.getSession();
       const token = session?.access_token;
       if (!token) return null;
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 6000);
       const res = await fetch("/api/auth/user", {
         headers: { Authorization: `Bearer ${token}` },
         credentials: "include",
+        signal: controller.signal,
       });
+      clearTimeout(timeout);
       if (!res.ok) return null;
       const data = await res.json();
       return {
@@ -60,8 +64,10 @@ export function useAuth() {
         return;
       }
       const baseUser = toAppUser(session.user);
-      const serverUser = await fetchServerUserRole();
-      setUser({ ...baseUser, ...serverUser });
+      setUser(baseUser);
+      fetchServerUserRole().then((serverUser) => {
+        if (serverUser) setUser((prev) => (prev ? { ...prev, ...serverUser } : prev));
+      });
       setIsLoading(false);
     });
 
@@ -72,8 +78,10 @@ export function useAuth() {
         return;
       }
       const baseUser = toAppUser(session.user);
-      const serverUser = await fetchServerUserRole();
-      setUser({ ...baseUser, ...serverUser });
+      setUser(baseUser);
+      fetchServerUserRole().then((serverUser) => {
+        if (serverUser) setUser((prev) => (prev ? { ...prev, ...serverUser } : prev));
+      });
     });
 
     return () => subscription.unsubscribe();
@@ -86,10 +94,11 @@ export function useAuth() {
       throw error;
     }
     const appUser = toAppUser(data.user);
-    const serverUser = await fetchServerUserRole();
-    const resolvedUser = { ...appUser, ...serverUser };
-    setUser(resolvedUser);
-    return resolvedUser;
+    setUser(appUser);
+    fetchServerUserRole().then((serverUser) => {
+      if (serverUser) setUser((prev) => (prev ? { ...prev, ...serverUser } : prev));
+    });
+    return appUser;
   }
 
   async function register({ email, password, firstName, lastName }: {
