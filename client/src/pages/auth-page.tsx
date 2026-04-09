@@ -43,6 +43,8 @@ export default function AuthPage() {
   const [showRegisterPassword, setShowRegisterPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [resolvingRedirect, setResolvingRedirect] = useState(false);
+  const [loginError, setLoginError] = useState<string | null>(null);
+  const [registerError, setRegisterError] = useState<string | null>(null);
 
   // Always call hooks first — redirect as a side effect
   const loginForm = useForm({
@@ -92,6 +94,31 @@ export default function AuthPage() {
 
   if (user || resolvingRedirect) return null;
 
+  async function handleLoginSubmit(data: { email: string; password: string }) {
+    setLoginError(null);
+    try {
+      await login(data);
+    } catch (err: any) {
+      setLoginError(err?.message || "Login failed. Please try again.");
+    }
+  }
+
+  async function handleRegisterSubmit(data: {
+    email: string;
+    password: string;
+    confirmPassword: string;
+    firstName: string;
+    lastName: string;
+  }) {
+    setRegisterError(null);
+    try {
+      const { confirmPassword, ...payload } = data;
+      await register(payload);
+    } catch (err: any) {
+      setRegisterError(err?.message || "Registration failed. Please try again.");
+    }
+  }
+
   return (
     <div className="min-h-[calc(100vh-4rem)] flex items-center justify-center p-4 bg-gradient-to-b from-muted/40 to-background">
       <Card className="w-full max-w-md shadow-xl border border-border/60">
@@ -111,7 +138,7 @@ export default function AuthPage() {
 
             <TabsContent value="login">
               <Form {...loginForm}>
-                <form onSubmit={loginForm.handleSubmit((data) => login(data))} className="space-y-4">
+                <form onSubmit={loginForm.handleSubmit(handleLoginSubmit)} className="space-y-4">
                   <FormField
                     control={loginForm.control}
                     name="email"
@@ -147,18 +174,16 @@ export default function AuthPage() {
                     )}
                   />
                   <Button type="submit" className="w-full h-11 text-lg font-bold bg-primary hover:bg-primary/90 rounded-full">
-                    Login
+                    {loginForm.formState.isSubmitting ? "Logging in..." : "Login"}
                   </Button>
+                  {loginError && <p className="text-sm text-destructive">{loginError}</p>}
                 </form>
               </Form>
             </TabsContent>
 
             <TabsContent value="register">
               <Form {...registerForm}>
-                <form
-                  onSubmit={registerForm.handleSubmit(({ confirmPassword, ...data }) => register(data))}
-                  className="space-y-4"
-                >
+                <form onSubmit={registerForm.handleSubmit(handleRegisterSubmit)} className="space-y-4">
                   <div className="grid grid-cols-2 gap-4">
                     <FormField
                       control={registerForm.control}
@@ -244,8 +269,9 @@ export default function AuthPage() {
                     Password must include lowercase, uppercase, number, and symbol (minimum 6 characters).
                   </p>
                   <Button type="submit" className="w-full h-11 text-lg font-bold bg-primary hover:bg-primary/90 rounded-full">
-                    Create Account
+                    {registerForm.formState.isSubmitting ? "Creating account..." : "Create Account"}
                   </Button>
+                  {registerError && <p className="text-sm text-destructive">{registerError}</p>}
                 </form>
               </Form>
             </TabsContent>
