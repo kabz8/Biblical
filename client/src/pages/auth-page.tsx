@@ -12,6 +12,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Eye, EyeOff } from "lucide-react";
 import { useState } from "react";
 import logoPng from "@assets/logo_1772459405886.png";
+import { getAuthToken } from "@/lib/supabase";
 
 const loginSchema = z.object({
   email: z.string().email(),
@@ -41,6 +42,7 @@ export default function AuthPage() {
   const [showLoginPassword, setShowLoginPassword] = useState(false);
   const [showRegisterPassword, setShowRegisterPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [resolvingRedirect, setResolvingRedirect] = useState(false);
 
   // Always call hooks first — redirect as a side effect
   const loginForm = useForm({
@@ -54,15 +56,41 @@ export default function AuthPage() {
   });
 
   useEffect(() => {
-    if (!user) return;
-    if (user.role === "admin") {
-      setLocation("/admin");
-      return;
+    let cancelled = false;
+    async function resolveRedirect() {
+      if (!user) return;
+      setResolvingRedirect(true);
+      try {
+        const token = await getAuthToken();
+        if (!token) {
+          if (!cancelled) setLocation("/dashboard");
+          return;
+        }
+        const res = await fetch("/api/auth/user", {
+          headers: { Authorization: `Bearer ${token}` },
+          credentials: "include",
+        });
+        if (!res.ok) {
+          if (!cancelled) setLocation("/dashboard");
+          return;
+        }
+        const serverUser = await res.json();
+        if (!cancelled) {
+          setLocation(serverUser?.role === "admin" ? "/admin" : "/dashboard");
+        }
+      } catch {
+        if (!cancelled) setLocation("/dashboard");
+      } finally {
+        if (!cancelled) setResolvingRedirect(false);
+      }
     }
-    setLocation("/dashboard");
+    resolveRedirect();
+    return () => {
+      cancelled = true;
+    };
   }, [user, setLocation]);
 
-  if (user) return null;
+  if (user || resolvingRedirect) return null;
 
   return (
     <div className="min-h-[calc(100vh-4rem)] flex items-center justify-center p-4 bg-gradient-to-b from-muted/40 to-background">
