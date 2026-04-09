@@ -54,17 +54,20 @@ export default function AuthPage() {
   });
 
   useEffect(() => {
-    if (user) setLocation("/");
+    if (user) setLocation("/dashboard");
   }, [user, setLocation]);
 
   if (user) return null;
 
   return (
-    <div className="min-h-[calc(100vh-4rem)] flex items-center justify-center p-4 bg-muted/30">
-      <Card className="w-full max-w-md shadow-xl border-none">
-        <CardHeader className="text-center space-y-4 pb-8">
+    <div className="min-h-[calc(100vh-4rem)] flex items-center justify-center p-4 bg-gradient-to-b from-muted/40 to-background">
+      <Card className="w-full max-w-md shadow-xl border border-border/60">
+        <CardHeader className="text-center space-y-3 pb-6">
           <img src={logoPng} alt="Logo" className="h-12 mx-auto" />
-          <h1 className="text-2xl font-bold tracking-tight">Welcome back</h1>
+          <h1 className="text-2xl font-bold tracking-tight">Welcome to Biblical</h1>
+          <p className="text-sm text-muted-foreground">
+            Sign in to continue your learning journey or create a new account.
+          </p>
         </CardHeader>
         <CardContent>
           <Tabs defaultValue="login">
@@ -82,7 +85,7 @@ export default function AuthPage() {
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>Email</FormLabel>
-                        <FormControl><Input {...field} /></FormControl>
+                        <FormControl><Input type="email" placeholder="you@example.com" {...field} /></FormControl>
                         <FormMessage />
                       </FormItem>
                     )}
@@ -110,7 +113,7 @@ export default function AuthPage() {
                       </FormItem>
                     )}
                   />
-                  <Button type="submit" className="w-full h-11 text-lg font-bold bg-primary hover:bg-primary/90">
+                  <Button type="submit" className="w-full h-11 text-lg font-bold bg-primary hover:bg-primary/90 rounded-full">
                     Login
                   </Button>
                 </form>
@@ -130,7 +133,7 @@ export default function AuthPage() {
                       render={({ field }) => (
                         <FormItem>
                           <FormLabel>First Name</FormLabel>
-                          <FormControl><Input {...field} /></FormControl>
+                          <FormControl><Input placeholder="John" {...field} /></FormControl>
                           <FormMessage />
                         </FormItem>
                       )}
@@ -141,7 +144,7 @@ export default function AuthPage() {
                       render={({ field }) => (
                         <FormItem>
                           <FormLabel>Last Name</FormLabel>
-                          <FormControl><Input {...field} /></FormControl>
+                          <FormControl><Input placeholder="Doe" {...field} /></FormControl>
                           <FormMessage />
                         </FormItem>
                       )}
@@ -153,7 +156,7 @@ export default function AuthPage() {
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>Email</FormLabel>
-                        <FormControl><Input {...field} /></FormControl>
+                        <FormControl><Input type="email" placeholder="you@example.com" {...field} /></FormControl>
                         <FormMessage />
                       </FormItem>
                     )}
@@ -204,7 +207,10 @@ export default function AuthPage() {
                       </FormItem>
                     )}
                   />
-                  <Button type="submit" className="w-full h-11 text-lg font-bold bg-primary hover:bg-primary/90">
+                  <p className="text-xs text-muted-foreground leading-relaxed">
+                    Password must include lowercase, uppercase, number, and symbol (minimum 6 characters).
+                  </p>
+                  <Button type="submit" className="w-full h-11 text-lg font-bold bg-primary hover:bg-primary/90 rounded-full">
                     Create Account
                   </Button>
                 </form>

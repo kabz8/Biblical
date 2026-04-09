@@ -67,10 +67,21 @@ export function useAuth() {
       toast({ title: "Registration failed", description: error.message, variant: "destructive" });
       throw error;
     }
+    // If email confirmation is enabled, Supabase returns no session until the user confirms.
+    if (!data.session) {
+      setUser(null);
+      toast({
+        title: "Registration successful",
+        description: "Check your email and click the confirmation link to activate your account.",
+      });
+      return null;
+    }
+
     if (!data.user) {
       toast({ title: "Check your email", description: "Please verify your email address to continue." });
       return null;
     }
+
     const appUser = toAppUser(data.user);
     setUser(appUser);
     // Sync to our public.users table

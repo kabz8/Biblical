@@ -116,31 +116,42 @@ export function LayoutWrapper({ children }: { children: React.ReactNode }) {
 
             {/* Auth - Desktop/Mobile shared visible */}
             {isAuthenticated ? (
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" className="rounded-full gap-2 pl-2 h-9">
-                    <img 
-                      src={user?.profileImageUrl || `https://ui-avatars.com/api/?name=${user?.firstName || 'U'}&background=random`} 
-                      alt="Avatar" 
-                      className="w-7 h-7 rounded-full"
-                    />
-                    <ChevronDown className="w-4 h-4 text-muted-foreground" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-48">
-                  <Link href="/dashboard">
-                    <DropdownMenuItem className="cursor-pointer">
-                      <LayoutDashboard className="w-4 h-4 mr-2" />
-                      Dashboard
+              <>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" className="rounded-full gap-2 pl-2 h-9">
+                      <img 
+                        src={user?.profileImageUrl || `https://ui-avatars.com/api/?name=${user?.firstName || 'U'}&background=random`} 
+                        alt="Avatar" 
+                        className="w-7 h-7 rounded-full"
+                      />
+                      <ChevronDown className="w-4 h-4 text-muted-foreground" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-48">
+                    <Link href="/dashboard">
+                      <DropdownMenuItem className="cursor-pointer">
+                        <LayoutDashboard className="w-4 h-4 mr-2" />
+                        Dashboard
+                      </DropdownMenuItem>
+                    </Link>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={() => logout()} className="text-destructive cursor-pointer">
+                      <LogOut className="w-4 h-4 mr-2" />
+                      Logout
                     </DropdownMenuItem>
-                  </Link>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={() => logout()} className="text-destructive cursor-pointer">
-                    <LogOut className="w-4 h-4 mr-2" />
-                    Logout
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="hidden md:inline-flex rounded-full h-9"
+                  onClick={() => logout()}
+                >
+                  <LogOut className="w-4 h-4 mr-2" />
+                  Logout
+                </Button>
+              </>
             ) : (
               <Link href="/auth">
                 <Button className="rounded-full font-bold text-sm h-9 px-4 shadow-sm hover:shadow-md transition-all">
@@ -166,6 +177,27 @@ export function LayoutWrapper({ children }: { children: React.ReactNode }) {
                   <NavItems mobile />
                   <div className="h-px bg-border my-2" />
                   <div className="flex flex-col gap-4">
+                    {isAuthenticated && (
+                      <div className="space-y-2">
+                        <Link href="/dashboard" onClick={() => setIsMobileMenuOpen(false)}>
+                          <Button variant="outline" className="w-full justify-start rounded-full">
+                            <LayoutDashboard className="w-4 h-4 mr-2" />
+                            Dashboard
+                          </Button>
+                        </Link>
+                        <Button
+                          variant="destructive"
+                          className="w-full justify-start rounded-full"
+                          onClick={async () => {
+                            await logout();
+                            setIsMobileMenuOpen(false);
+                          }}
+                        >
+                          <LogOut className="w-4 h-4 mr-2" />
+                          Logout
+                        </Button>
+                      </div>
+                    )}
                     <div className="flex items-center justify-between text-sm font-bold text-muted-foreground">
                       <span>Appearance</span>
                       <Button
