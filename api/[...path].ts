@@ -1,6 +1,5 @@
 import express, { type NextFunction, type Request, type Response } from "express";
 import { createServer } from "http";
-import { registerRoutes } from "../server/routes";
 
 const app = express();
 
@@ -19,6 +18,7 @@ function ensureInitialized(): Promise<void> {
   if (!initPromise) {
     initPromise = (async () => {
       const httpServer = createServer(app);
+      const { registerRoutes } = await import("../server/routes");
       await registerRoutes(httpServer, app);
 
       app.use((err: any, _req: Request, res: Response, next: NextFunction) => {
@@ -35,6 +35,22 @@ function ensureInitialized(): Promise<void> {
 ensureInitialized().catch(console.error);
 
 export default async function handler(req: Request, res: Response) {
-  await ensureInitialized();
-  return app(req, res);
+  try {
+    await ensureInitialized();
+    return app(req, res);
+  } catch (error: any) {
+    const message = String(error?.message || "Server failed to initialize");
+    const missingEnv =
+      !process.env.DATABASE_URL ||
+      !process.env.SUPABASE_URL ||
+      !process.env.SUPABASE_SERVICE_ROLE_KEY;
+    const hint = missingEnv
+      ? "Check Vercel env vars: DATABASE_URL, SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY."
+      : "Check server logs for stack trace.";
+    return res.status(500).json({
+      message: "API initialization failed",
+      detail: message,
+      hint,
+    });
+  }
 }
