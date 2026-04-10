@@ -32,8 +32,6 @@ function ensureInitialized(): Promise<void> {
   return initPromise;
 }
 
-ensureInitialized().catch(console.error);
-
 export default async function handler(req: Request, res: Response) {
   try {
     await ensureInitialized();
