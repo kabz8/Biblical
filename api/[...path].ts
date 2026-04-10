@@ -1,5 +1,6 @@
 import express, { type NextFunction, type Request, type Response } from "express";
 import { createServer } from "http";
+import { registerRoutes } from "./routes-runtime";
 
 const app = express();
 
@@ -13,21 +14,11 @@ app.use(
 app.use(express.urlencoded({ extended: false }));
 
 let initPromise: Promise<void> | null = null;
-let registerRoutesFn: ((httpServer: ReturnType<typeof createServer>, app: express.Express) => Promise<any>) | null = null;
-
-async function getRegisterRoutes() {
-  if (!registerRoutesFn) {
-    const mod = await import("./routes-runtime");
-    registerRoutesFn = mod.registerRoutes;
-  }
-  return registerRoutesFn;
-}
 
 function ensureInitialized(): Promise<void> {
   if (!initPromise) {
     initPromise = (async () => {
       const httpServer = createServer(app);
-      const registerRoutes = await getRegisterRoutes();
       await registerRoutes(httpServer, app);
 
       app.use((err: any, _req: Request, res: Response, next: NextFunction) => {

@@ -1,1 +1,1 @@
-export { registerRoutes } from "../server/routes";
+export { registerRoutes } from "../server/routes.ts";
