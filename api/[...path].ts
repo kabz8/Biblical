@@ -1,6 +1,6 @@
 import express, { type NextFunction, type Request, type Response } from "express";
 import { createServer } from "http";
-import { registerRoutes } from "./routes-runtime";
+import { registerRoutes } from "./routes-runtime.js";
 
 const app = express();
 
