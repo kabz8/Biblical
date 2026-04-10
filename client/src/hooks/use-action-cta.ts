@@ -6,6 +6,7 @@ export function useActionCTA() {
   const { isAuthenticated } = useAuth();
   const [, navigate] = useLocation();
   const { toast } = useToast();
+  const currentPath = typeof window !== "undefined" ? window.location.pathname : "/";
 
   const requireAuth = (callback: () => void, message = "Please log in to continue.") => {
     if (!isAuthenticated) {
@@ -13,7 +14,7 @@ export function useActionCTA() {
         title: "Login Required",
         description: message,
       });
-      navigate("/auth");
+      navigate(`/auth?next=${encodeURIComponent(currentPath)}`);
       return;
     }
     callback();
@@ -25,6 +26,7 @@ export function useActionCTA() {
         title: "Joining Session!",
         description: `You've successfully joined "${sessionTitle}". Welcome!`,
       });
+      navigate("/dashboard");
     }, "Please log in to join a live session.");
   };
 
@@ -34,6 +36,7 @@ export function useActionCTA() {
         title: "Registered!",
         description: `You're registered for "${tournamentTitle}". Good luck!`,
       });
+      navigate("/dashboard");
     }, "Please log in to register for tournaments.");
   };
 
@@ -43,6 +46,7 @@ export function useActionCTA() {
         title: "Activity Started!",
         description: `"${activityTitle}" has begun. Enjoy your session!`,
       });
+      navigate("/dashboard");
     }, "Please log in to start activities.");
   };
 
@@ -59,7 +63,7 @@ export function useActionCTA() {
 
   const joinCommunity = () => {
     if (!isAuthenticated) {
-      navigate("/auth");
+      navigate(`/auth?next=${encodeURIComponent("/dashboard")}`);
     } else {
       navigate("/dashboard");
     }

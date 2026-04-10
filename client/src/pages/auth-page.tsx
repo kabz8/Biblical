@@ -39,6 +39,11 @@ const registerSchema = z.object({
 export default function AuthPage() {
   const { user, login, register } = useAuth();
   const [, setLocation] = useLocation();
+  const nextPath = (() => {
+    if (typeof window === "undefined") return "/dashboard";
+    const p = new URLSearchParams(window.location.search).get("next");
+    return p && p.startsWith("/") ? p : "/dashboard";
+  })();
   const [showLoginPassword, setShowLoginPassword] = useState(false);
   const [showRegisterPassword, setShowRegisterPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
@@ -78,10 +83,15 @@ export default function AuthPage() {
         }
         const serverUser = await res.json();
         if (!cancelled) {
-          setLocation(serverUser?.role === "admin" ? "/admin" : "/dashboard");
+          const role = String(serverUser?.role || "").toLowerCase();
+          if (role === "admin" || role === "super_admin" || role === "super-admin" || role === "superadmin") {
+            setLocation("/admin");
+          } else {
+            setLocation(nextPath);
+          }
         }
       } catch {
-        if (!cancelled) setLocation("/dashboard");
+        if (!cancelled) setLocation(nextPath);
       } finally {
         if (!cancelled) setResolvingRedirect(false);
       }
@@ -90,7 +100,7 @@ export default function AuthPage() {
     return () => {
       cancelled = true;
     };
-  }, [user, setLocation]);
+  }, [user, setLocation, nextPath]);
 
   if (user || resolvingRedirect) return null;
 

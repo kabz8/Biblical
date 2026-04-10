@@ -170,7 +170,7 @@ function CrosswordGame({ puzzle, onBack }: { puzzle: any; onBack: () => void }) 
 
 // ── Multiple Choice Quiz ──────────────────────────────────────────────────
 function MultipleChoiceGame({ onBack }: { onBack: () => void }) {
-  const { data: rawQuestions = [], isLoading } = useQuery<any[]>({ queryKey: ["/api/quiz-questions"] });
+  const { data: rawQuestions = [], isLoading, isError, error } = useQuery<any[]>({ queryKey: ["/api/quiz-questions"] });
   const questions = rawQuestions.map(q => ({
     id: q.id, scripture: q.scripture, question: q.question,
     options: [q.optionA, q.optionB, q.optionC, q.optionD],
@@ -200,6 +200,17 @@ function MultipleChoiceGame({ onBack }: { onBack: () => void }) {
     <div className="min-h-screen flex flex-col items-center justify-center gap-4">
       <Loader2 className="w-8 h-8 animate-spin text-primary" />
       <p className="text-muted-foreground">Loading questions…</p>
+    </div>
+  );
+
+  if (isError) return (
+    <div className="min-h-screen flex flex-col">
+      <div className="bg-foreground text-background py-4 px-4">
+        <div className="container mx-auto"><Button variant="ghost" size="sm" className="text-background hover:bg-white/10" onClick={onBack}><ChevronLeft className="w-4 h-4 mr-1" />Back</Button></div>
+      </div>
+      <div className="flex-1 flex items-center justify-center p-6 text-center">
+        <div><Brain className="w-16 h-16 text-destructive/60 mx-auto mb-4" /><h2 className="text-xl font-bold mb-2">Could not load quiz</h2><p className="text-muted-foreground">{(error as Error)?.message || "API request failed."}</p></div>
+      </div>
     </div>
   );
 
@@ -287,7 +298,7 @@ function MultipleChoiceGame({ onBack }: { onBack: () => void }) {
 // ── Word Search Game ──────────────────────────────────────────────────────
 function WordSearchGame({ onBack }: { onBack: () => void }) {
   const [category, setCategory] = useState<"places"|"books">("places");
-  const { data: allWords = [], isLoading } = useQuery<any[]>({ queryKey: ["/api/word-search-words"] });
+  const { data: allWords = [], isLoading, isError, error } = useQuery<any[]>({ queryKey: ["/api/word-search-words"] });
 
   const words = allWords.filter((w: any) => w.category === category).map((w: any) => w.word.toUpperCase());
 
@@ -330,6 +341,15 @@ function WordSearchGame({ onBack }: { onBack: () => void }) {
     <div className="min-h-screen flex flex-col">
       <div className="bg-foreground text-background py-4 px-4"><div className="container mx-auto"><Button variant="ghost" size="sm" className="text-background hover:bg-white/10" onClick={onBack}><ChevronLeft className="w-4 h-4 mr-1" />Back</Button></div></div>
       <div className="flex-1 flex items-center justify-center"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div>
+    </div>
+  );
+
+  if (isError) return (
+    <div className="min-h-screen flex flex-col">
+      <div className="bg-foreground text-background py-4 px-4"><div className="container mx-auto"><Button variant="ghost" size="sm" className="text-background hover:bg-white/10" onClick={onBack}><ChevronLeft className="w-4 h-4 mr-1" />Back</Button></div></div>
+      <div className="flex-1 flex items-center justify-center text-center p-6">
+        <div><Search className="w-16 h-16 text-destructive/60 mx-auto mb-4" /><h2 className="text-xl font-bold mb-2">Could not load word search</h2><p className="text-muted-foreground">{(error as Error)?.message || "API request failed."}</p></div>
+      </div>
     </div>
   );
 
@@ -399,13 +419,16 @@ function WordSearchGame({ onBack }: { onBack: () => void }) {
 
 // ── Crossword Picker ──────────────────────────────────────────────────────
 function CrosswordPicker({ onSelect, onBack }: { onSelect: (p: any) => void; onBack: () => void }) {
-  const { data: puzzles = [], isLoading } = useQuery<any[]>({ queryKey: ["/api/crosswords"] });
+  const { data: puzzles = [], isLoading, isError, error } = useQuery<any[]>({ queryKey: ["/api/crosswords"] });
   return (
     <div className="min-h-screen bg-background flex flex-col">
       <div className="bg-foreground text-background py-4 px-4"><div className="container mx-auto"><Button variant="ghost" size="sm" className="text-background hover:bg-white/10" onClick={onBack}><ChevronLeft className="w-4 h-4 mr-1" />Back</Button></div></div>
       <div className="container mx-auto px-4 py-10">
         <h2 className="text-2xl font-bold text-center mb-8">Choose a Crossword</h2>
         {isLoading ? <div className="flex justify-center"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div> :
+          isError ? (
+            <div className="text-center py-16"><Grid3X3 className="w-16 h-16 text-destructive/60 mx-auto mb-4" /><h3 className="text-xl font-bold mb-2">Could not load crosswords</h3><p className="text-muted-foreground">{(error as Error)?.message || "API request failed."}</p></div>
+          ) :
           puzzles.length === 0 ? (
             <div className="text-center py-16"><Grid3X3 className="w-16 h-16 text-muted-foreground/30 mx-auto mb-4" /><h3 className="text-xl font-bold mb-2">No Crosswords Yet</h3><p className="text-muted-foreground">Crossword puzzles are created by the admin. Check back soon!</p></div>
           ) : (
