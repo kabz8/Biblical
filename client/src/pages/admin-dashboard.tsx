@@ -1,7 +1,9 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { supabase } from "@/lib/supabase";
+import { useAuth } from "@/hooks/use-auth";
+import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -756,9 +758,16 @@ function StudentsTasksTab() {
 
   const syncUsers = useMutation({
     mutationFn: () => apiRequest("POST", "/api/admin/sync-users"),
-    onSuccess: async () => {
+    onSuccess: async (res) => {
+      let details = "";
+      try {
+        const data = await res.json();
+        details = `Synced: ${data?.synced ?? 0}, Failed: ${data?.failed ?? 0}, Total: ${data?.total ?? 0}`;
+      } catch {
+        details = "User sync completed.";
+      }
       await queryClient.invalidateQueries({ queryKey: ["/api/admin/students"] });
-      toast({ title: "Registered users synced" });
+      toast({ title: "Registered users synced", description: details });
     },
     onError: (err: any) => toast({ title: "User sync failed", description: err?.message, variant: "destructive" }),
   });
@@ -1072,14 +1081,33 @@ const TABS = [
 type TabId = typeof TABS[number]["id"];
 
 export default function AdminDashboard() {
+  const { user, isLoading: authLoading } = useAuth();
+  const [, setLocation] = useLocation();
   const [activeTab, setActiveTab] = useState<TabId>("courses");
   const { toast } = useToast();
 
+  useEffect(() => {
+    if (authLoading) return;
+    if (!user) {
+      setLocation("/auth?next=%2Fadmin");
+      return;
+    }
+    const role = String(user.role || "").toLowerCase();
+    const isAdmin = role === "admin" || role === "super_admin" || role === "super-admin" || role === "superadmin";
+    if (!isAdmin) {
+      toast({ title: "Admin access required", description: "Your account does not have admin rights.", variant: "destructive" });
+      setLocation("/dashboard");
+    }
+  }, [authLoading, user, setLocation, toast]);
+
   async function handleLogout() {
-    await fetch("/api/logout", { method: "POST", credentials: "include" });
+    await supabase.auth.signOut();
     queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
     toast({ title: "Logged out" });
+    setLocation("/auth");
   }
+
+  if (authLoading || !user) return <div className="p-10 text-center">Checking admin access...</div>;
 
   return (
     <div className="min-h-screen bg-muted/20">
