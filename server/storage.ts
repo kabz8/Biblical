@@ -2,9 +2,11 @@ import { db } from "./db";
 import {
   tracks, courses, modules, lessons, enrollments, progress, profiles, activitySubmissions,
   songs, quizQuestions, wordSearchWords, crosswordPuzzles, testimonies, prayers,
+  stewardshipTypes,
   type Track, type Course, type Module, type Lesson, type Enrollment, type Progress, type Profile,
   type ActivitySubmission, type InsertActivitySubmission,
   type Song, type InsertSong,
+  type StewardshipType,
   type QuizQuestion, type InsertQuizQuestion,
   type WordSearchWord, type InsertWordSearchWord,
   type CrosswordPuzzle, type InsertCrosswordPuzzle,
@@ -34,6 +36,7 @@ export interface IStorage {
   getSongs(displayOn?: string): Promise<Song[]>;
   createSong(song: InsertSong): Promise<Song>;
   deleteSong(id: number): Promise<void>;
+  getStewardshipTypes(group?: string): Promise<StewardshipType[]>;
 
   // Quiz Questions
   getQuizQuestions(): Promise<QuizQuestion[]>;
@@ -91,6 +94,10 @@ export class DatabaseStorage implements IStorage {
   }
   async createSong(song: InsertSong) { const [s] = await db.insert(songs).values(song).returning(); return s; }
   async deleteSong(id: number) { await db.delete(songs).where(eq(songs.id, id)); }
+  async getStewardshipTypes(group?: string) {
+    if (group) return db.select().from(stewardshipTypes).where(and(eq(stewardshipTypes.group, group), eq(stewardshipTypes.isActive, true))).orderBy(stewardshipTypes.order, stewardshipTypes.name);
+    return db.select().from(stewardshipTypes).where(eq(stewardshipTypes.isActive, true)).orderBy(stewardshipTypes.group, stewardshipTypes.order, stewardshipTypes.name);
+  }
 
   // Quiz Questions
   async getQuizQuestions() { return db.select().from(quizQuestions).orderBy(quizQuestions.createdAt); }

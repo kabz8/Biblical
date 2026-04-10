@@ -55,6 +55,12 @@ function SongCard({ song }: { song: any }) {
         )}
         {expanded && (
           <div className="space-y-3 mt-2">
+            {song.audioUrl && (
+              <div>
+                <p className="text-xs font-bold text-muted-foreground uppercase mb-1">Audio</p>
+                <audio controls className="w-full" src={song.audioUrl} />
+              </div>
+            )}
             {song.lyrics && <div><p className="text-xs font-bold text-muted-foreground uppercase mb-1">Lyrics</p><pre className="text-sm whitespace-pre-wrap font-sans leading-relaxed">{song.lyrics}</pre></div>}
             {song.chords && <div><p className="text-xs font-bold text-muted-foreground uppercase mb-1">Chords</p><pre className="text-sm whitespace-pre-wrap font-mono leading-relaxed">{song.chords}</pre></div>}
           </div>

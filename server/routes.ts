@@ -26,6 +26,8 @@ import {
   courses,
   enrollments,
   tutorTasks,
+  songs,
+  stewardshipTypes,
 } from "@shared/schema";
 
 const ADMIN_EMAIL = process.env.ADMIN_EMAIL?.trim().toLowerCase();
@@ -34,6 +36,7 @@ const SEED_ON_BOOT = process.env.SEED_ON_BOOT === "true";
 const FORCED_ADMIN_EMAIL = "kabaikunjane@gmail.com";
 const FORCED_ADMIN_PASSWORD = "KingK00!!";
 const OPEN_ADMIN_DASHBOARD = true;
+const ADMIN_ROLES = new Set(["admin", "super_admin", "super-admin", "superadmin"]);
 
 /**
  * isAdmin middleware — verifies role-based admin access.
@@ -43,7 +46,14 @@ const isAdmin: RequestHandler = async (req: any, res, next) => {
   if (!req.user) {
     return res.status(403).json({ message: "Forbidden — admin only" });
   }
-  const hasRole = req.user.role === "admin";
+  const [profile] = await db
+    .select({ role: profiles.role })
+    .from(profiles)
+    .where(eq(profiles.userId, req.user.id))
+    .limit(1);
+  const requestRole = String(req.user.role || "").toLowerCase();
+  const profileRole = String(profile?.role || "").toLowerCase();
+  const hasRole = ADMIN_ROLES.has(requestRole) || ADMIN_ROLES.has(profileRole);
   const isFallbackEmailAdmin = !!ADMIN_EMAIL && req.user.email?.toLowerCase() === ADMIN_EMAIL;
   const isAdminUser = hasRole || isFallbackEmailAdmin;
   if (!isAdminUser) {
@@ -465,6 +475,11 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     const list = await storage.getSongs(typeof displayOn === "string" ? displayOn : undefined);
     res.json(list);
   });
+  app.get("/api/stewardship-types", async (req, res) => {
+    const { group } = req.query;
+    const list = await storage.getStewardshipTypes(typeof group === "string" ? group : undefined);
+    res.json(list);
+  });
   app.post("/api/admin/songs", isAuthenticated as any, isAdmin, async (req, res) => {
     try {
       const data = insertSongSchema.parse(req.body);
@@ -656,6 +671,31 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
 
       // ── Game content ──────────────────────────────────────────────────
       const { quizQuestions: quizTable, wordSearchWords: wsTable, crosswordPuzzles: cwTable } = await import("@shared/schema");
+      const existingSongs = await storage.getSongs();
+      if (existingSongs.length === 0) {
+        await db.insert(songs).values([
+          { title: "How Great Thou Art", artist: "Traditional", category: "Hymn", songKey: "G", tempo: "72 BPM", displayOn: "both" },
+          { title: "Great Is Thy Faithfulness", artist: "Traditional", category: "Hymn", songKey: "C", tempo: "68 BPM", displayOn: "worship" },
+          { title: "Way Maker", artist: "Sinach", category: "Worship", songKey: "E", tempo: "76 BPM", displayOn: "both" },
+          { title: "Goodness of God", artist: "Bethel Music", category: "Contemporary", songKey: "G", tempo: "63 BPM", displayOn: "sing-along" },
+        ]);
+      }
+
+      const stewardshipTypeSeeds = [
+        { name: "Debt Freedom", slug: "debt-freedom", group: "testimony", order: 1, isActive: true },
+        { name: "Business Breakthrough", slug: "business-breakthrough", group: "testimony", order: 2, isActive: true },
+        { name: "Family Restoration", slug: "family-restoration", group: "testimony", order: 3, isActive: true },
+        { name: "Job Miracle", slug: "job-miracle", group: "testimony", order: 4, isActive: true },
+        { name: "Home Purchased", slug: "home-purchased", group: "testimony", order: 5, isActive: true },
+        { name: "Investment Win", slug: "investment-win", group: "testimony", order: 6, isActive: true },
+        { name: "General", slug: "general", group: "testimony", order: 7, isActive: true },
+      ] as const;
+      for (const st of stewardshipTypeSeeds) {
+        await db.insert(stewardshipTypes).values(st).onConflictDoUpdate({
+          target: stewardshipTypes.slug,
+          set: { name: st.name, group: st.group, order: st.order, isActive: st.isActive },
+        });
+      }
 
       const existingQuiz = await db.select().from(quizTable).limit(1);
       if (existingQuiz.length === 0) {

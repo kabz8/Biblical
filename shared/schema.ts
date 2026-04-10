@@ -112,9 +112,20 @@ export const songs = pgTable("songs", {
   category: text("category").notNull().default("Worship"),
   songKey: text("song_key"),
   tempo: text("tempo"),
+  audioUrl: text("audio_url"),
   lyrics: text("lyrics"),
   chords: text("chords"),
   displayOn: text("display_on").notNull().default("sing-along"), // sing-along | worship | both
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const stewardshipTypes = pgTable("stewardship_types", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull().unique(),
+  slug: text("slug").notNull().unique(),
+  group: text("group").notNull().default("testimony"),
+  order: integer("order").notNull().default(0),
+  isActive: boolean("is_active").notNull().default(true),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
@@ -183,6 +194,7 @@ export const tutorTasks = pgTable("tutor_tasks", {
 
 export const insertActivitySubmissionSchema = createInsertSchema(activitySubmissions).omit({ id: true, submittedAt: true });
 export const insertSongSchema = createInsertSchema(songs).omit({ id: true, createdAt: true });
+export const insertStewardshipTypeSchema = createInsertSchema(stewardshipTypes).omit({ id: true, createdAt: true });
 export const insertQuizQuestionSchema = createInsertSchema(quizQuestions).omit({ id: true, createdAt: true });
 export const insertWordSearchWordSchema = createInsertSchema(wordSearchWords).omit({ id: true, createdAt: true });
 export const insertCrosswordPuzzleSchema = createInsertSchema(crosswordPuzzles).omit({ id: true, createdAt: true });
@@ -196,6 +208,8 @@ export type ActivitySubmission = typeof activitySubmissions.$inferSelect;
 export type InsertActivitySubmission = z.infer<typeof insertActivitySubmissionSchema>;
 export type Song = typeof songs.$inferSelect;
 export type InsertSong = z.infer<typeof insertSongSchema>;
+export type StewardshipType = typeof stewardshipTypes.$inferSelect;
+export type InsertStewardshipType = z.infer<typeof insertStewardshipTypeSchema>;
 export type QuizQuestion = typeof quizQuestions.$inferSelect;
 export type InsertQuizQuestion = z.infer<typeof insertQuizQuestionSchema>;
 export type WordSearchWord = typeof wordSearchWords.$inferSelect;

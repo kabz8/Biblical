@@ -166,11 +166,33 @@ function DeleteBtn({ onDelete }: { onDelete: () => void }) {
 function SongsTab() {
   const { toast } = useToast();
   const { data: songs = [], isLoading } = useQuery<any[]>({ queryKey: ["/api/songs"] });
-  const [form, setForm] = useState({ title: "", artist: "", category: "Worship", songKey: "", tempo: "", lyrics: "", chords: "", displayOn: "sing-along" });
+  const [form, setForm] = useState({ title: "", artist: "", category: "Worship", songKey: "", tempo: "", audioUrl: "", lyrics: "", chords: "", displayOn: "sing-along" });
+  const [songFile, setSongFile] = useState<File | null>(null);
+  const [uploadingSong, setUploadingSong] = useState(false);
+
+  async function uploadSong(file: File): Promise<string> {
+    const extension = file.name.split(".").pop()?.toLowerCase() || "mp3";
+    const path = `songs/${Date.now()}-${Math.random().toString(36).slice(2)}.${extension}`;
+    const { error: uploadError } = await supabase.storage
+      .from("song-audio")
+      .upload(path, file, { upsert: false, cacheControl: "3600" });
+    if (uploadError) {
+      throw new Error(
+        `${uploadError.message}. Ensure a public 'song-audio' bucket exists in Supabase Storage.`
+      );
+    }
+    const { data } = supabase.storage.from("song-audio").getPublicUrl(path);
+    return data.publicUrl;
+  }
 
   const create = useMutation({
     mutationFn: () => apiRequest("POST", "/api/admin/songs", form),
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["/api/songs"] }); setForm({ title: "", artist: "", category: "Worship", songKey: "", tempo: "", lyrics: "", chords: "", displayOn: "sing-along" }); toast({ title: "Song added!" }); },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/songs"] });
+      setForm({ title: "", artist: "", category: "Worship", songKey: "", tempo: "", audioUrl: "", lyrics: "", chords: "", displayOn: "sing-along" });
+      setSongFile(null);
+      toast({ title: "Song added!" });
+    },
     onError: (err: any) => toast({ title: "Failed to add song", description: err?.message, variant: "destructive" }),
   });
 
@@ -209,10 +231,49 @@ function SongsTab() {
             </div>
             <div><Label>Key</Label><Input className="mt-1" value={form.songKey} onChange={e => setForm(f => ({ ...f, songKey: e.target.value }))} placeholder="G" /></div>
             <div><Label>Tempo</Label><Input className="mt-1" value={form.tempo} onChange={e => setForm(f => ({ ...f, tempo: e.target.value }))} placeholder="72 BPM" /></div>
+            <div className="sm:col-span-2">
+              <Label>Song File Upload (Optional)</Label>
+              <div className="mt-1 flex gap-2">
+                <Input
+                  type="file"
+                  accept="audio/*"
+                  onChange={e => setSongFile(e.target.files?.[0] || null)}
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  disabled={!songFile || uploadingSong}
+                  onClick={async () => {
+                    if (!songFile) return;
+                    try {
+                      setUploadingSong(true);
+                      const url = await uploadSong(songFile);
+                      setForm(f => ({ ...f, audioUrl: url }));
+                      toast({ title: "Song uploaded", description: "Audio URL attached to this song." });
+                    } catch (error: any) {
+                      toast({ title: "Upload failed", description: error?.message, variant: "destructive" });
+                    } finally {
+                      setUploadingSong(false);
+                    }
+                  }}
+                >
+                  {uploadingSong ? "Uploading..." : "Upload"}
+                </Button>
+              </div>
+            </div>
+            <div className="sm:col-span-2">
+              <Label>Audio URL (Optional)</Label>
+              <Input
+                className="mt-1"
+                value={form.audioUrl}
+                onChange={e => setForm(f => ({ ...f, audioUrl: e.target.value }))}
+                placeholder="https://.../song.mp3"
+              />
+            </div>
           </div>
           <div><Label>Lyrics</Label><Textarea className="mt-1 min-h-[100px]" value={form.lyrics} onChange={e => setForm(f => ({ ...f, lyrics: e.target.value }))} placeholder="Paste song lyrics here…" /></div>
           <div><Label>Chords</Label><Textarea className="mt-1" value={form.chords} onChange={e => setForm(f => ({ ...f, chords: e.target.value }))} placeholder="Chord chart or tab notation…" /></div>
-          <Button onClick={() => create.mutate()} disabled={!form.title || create.isPending} className="rounded-full font-bold">
+          <Button onClick={() => create.mutate()} disabled={!form.title || create.isPending || uploadingSong} className="rounded-full font-bold">
             <Plus className="w-4 h-4 mr-2" />{create.isPending ? "Adding…" : "Add Song"}
           </Button>
         </CardContent>
@@ -229,6 +290,11 @@ function SongsTab() {
                     <div className="flex-1 min-w-0">
                       <p className="font-bold truncate">{s.title}</p>
                       <p className="text-xs text-muted-foreground">{s.artist} · <Badge variant="outline" className="text-xs">{s.category}</Badge> · {s.displayOn}</p>
+                      {s.audioUrl && (
+                        <a href={s.audioUrl} target="_blank" rel="noreferrer" className="text-xs text-primary underline">
+                          Open audio file
+                        </a>
+                      )}
                     </div>
                     <DeleteBtn onDelete={() => del.mutate(s.id)} />
                   </div>
@@ -479,6 +545,9 @@ function CrosswordTab() {
 function TestimoniesTab() {
   const { toast } = useToast();
   const { data: testimonies = [], isLoading } = useQuery<any[]>({ queryKey: ["/api/admin/testimonies"] });
+  const fallbackCategories = ["Debt Freedom", "Business Breakthrough", "Family Restoration", "Job Miracle", "Home Purchased", "Investment Win", "General"];
+  const { data: stewardshipTypes = [] } = useQuery<any[]>({ queryKey: ["/api/stewardship-types?group=testimony"] });
+  const testimonyCategories = stewardshipTypes.length ? stewardshipTypes.map((t: any) => t.name) : fallbackCategories;
   const [form, setForm] = useState({ name: "", location: "", category: "Debt Freedom", title: "", story: "" });
 
   const create = useMutation({
@@ -514,7 +583,7 @@ function TestimoniesTab() {
               <Select value={form.category} onValueChange={v => setForm(f => ({ ...f, category: v }))}>
                 <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  {["Debt Freedom", "Business Breakthrough", "Family Restoration", "Job Miracle", "Home Purchased", "Investment Win", "General"].map(c => (
+                  {testimonyCategories.map(c => (
                     <SelectItem key={c} value={c}>{c}</SelectItem>
                   ))}
                 </SelectContent>
